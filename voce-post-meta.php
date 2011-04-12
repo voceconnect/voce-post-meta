@@ -13,13 +13,13 @@ class Voce_Meta_API {
 	private static $instance;
 
 	private $groups;
-
+	
 	public static function GetInstance() {
-
-		if (! isset ( self::$instance )) {
-			self::$instance = new Voce_Meta_API ();
+		
+		if (! isset(self::$instance)) {
+			self::$instance = new Voce_Meta_API();
 		}
-
+		
 		return self::$instance;
 	}
 
@@ -28,12 +28,12 @@ class Voce_Meta_API {
 	}
 
 	public function add_group($id, $title, $args = array()) {
-
-		if (! isset ( $this->groups [$id] )) {
-			$this->groups [$id] = new Voce_Meta_Group ( $id, $title, $args );
+		
+		if (! isset($this->groups[$id])) {
+			$this->groups[$id] = new Voce_Meta_Group($id, $title, $args);
 		}
-
-		return $this->groups [$id];
+		
+		return $this->groups[$id];
 	}
 
 }
@@ -86,24 +86,25 @@ class Voce_Meta_Group {
 	 * priority for the metabox
 	 * @var string
 	 */
-	private $priority;
+	var $priority;
 
 	public function __construct($id, $title, $args) {
-		$defaults = array ('description' => '', 'capability' => '', 'context' => 'normal', 'priority' => 'default' );
-		$r = wp_parse_args ( $args, $defaults );
-
-		$this->fields = array ();
+		$defaults = array('description' => '', 'capability' => '', 'context' => 'normal', 'priority' => 'default');
+		$r = wp_parse_args($args, $defaults);
+		
+		$this->fields = array();
 		$this->id = $id;
 		$this->title = $title;
-		$this->description = $r ['description'];
-		$this->capability = $r ['capability'];
-		$this->context = $r ['context'];
-		$this->priority = $r ['priority'];
+		$this->description = $r['description'];
+		$this->capability = $r['capability'];
+		$this->context = $r['context'];
+		$this->priority = $r['priority'];
+		
+		add_action('add_meta_boxes', array($this, '_add_metabox'));
+		add_action('save_post', array($this, 'update_group'), 10, 2);
 
-		add_action ( 'add_meta_boxes', array ($this, '_add_metabox' ) );
-		add_action ( 'save_post', array($this, 'update_group' ), 10, 2 );
 	}
-
+	
 	public function _add_metabox($post_type) {
 
 		if (post_type_supports ( $post_type, $this->id ) && current_user_can($this->capability) ) {
@@ -113,44 +114,53 @@ class Voce_Meta_Group {
 
 	public function _display_group($post) {
 		if ($this->description) {
-			echo '<p>', esc_html ( $this->description ), '</p>';
+			echo '<p>', esc_html($this->description), '</p>';
 		}
 		foreach ( $this->fields as $field ) {
 			$field->display_field ($post->ID);
 		}
 		wp_nonce_field("update_{$this->id}", "{$this->id}_nonce");
 	}
-
-	function add_field($type, $id, $label, $args = array()) {
-
-		if (! isset ( $this->fields [$id] )) {
+	
+	/**
+	 * 
+	 * Creates, adds, and returns a new field for this group
+	 * @param string $type
+	 * @param string $id
+	 * @param string $label
+	 * @param array $args
+	 */
+	public function add_field($type, $id, $label, $args = array()) {
+		
+		if (! isset($this->fields[$id])) {
 			if (class_exists($type)) {
-				$this->fields [$id] = new $type ( $id, $label, $this, $args );
+				$this->fields[$id] = new $type($this, $id, $label, $args);
 			}
 		}
-
-		return $this->fields [$id];
+		
+		return $this->fields[$id];
 	}
-
-	function verify_nonce() {
-
+	
+	private function verify_nonce() {
+		
 		if (isset($_REQUEST["{$this->id}_nonce"])) {
 			return wp_verify_nonce($_REQUEST["{$this->id}_nonce"], "update_{$this->id}");
 		}
-
+		
 		return false;
 	}
-
-	function update_group($post_id, $post) {
-
-		if (wp_is_post_autosave($post) || wp_is_post_revision($post) || !$this->verify_nonce()) {
+	
+	public function update_group($post_id, $post) {
+		
+		if (wp_is_post_autosave($post) || wp_is_post_revision($post) || ! $this->verify_nonce()) {
 			return $post_id;
 		}
+
 
 		foreach ($this->fields as $field) {
 			$field->update_field($post_id);
 		}
-
+	
 	}
 
 }
@@ -160,19 +170,30 @@ class Voce_Meta_Field {
 	var $group;
 	var $id;
 	var $label;
-	var $callback;
-
-	function __construct($id, $label, $group, $args = array()) {
+	var $display_callbacks;
+	var $sanitize_callbacks;
+	var $capability;
+	var $args;
+	
+	
+	public function __construct($group, $id, $label, $args = array()) {
 		$this->group = $group;
-		$this->id = $id;
 		$this->label = $label;
-
+		$this->id = $id;
+		
 		$defaults = array(
-			'callback' => 'voce_text_field_display',
+			'capability' => $this->group->capability, 
+			'default_value' => '', 
+			'display_callbacks' => array('voce_text_field_display'),
+			'sanitize_callbacks' => array('vs_santize_text'),
+			'description' => ''
 		);
-		$r = wp_parse_args($args, $defaults);
-
-		$this->callback = $r['callback'];
+		
+		$args = wp_parse_args($args, $defaults);
+		
+		$this->default_value = $args['default_value'];
+		$this->capability = $args['capability'];
+		$this->args = $args;
 	}
 
 	function get_value($post_id) {
@@ -187,7 +208,9 @@ class Voce_Meta_Field {
 
 	function display_field($post_id) {
 		$value = $this->get_value($post_id);
-		call_user_func($this->callback, $this->id, $this->label, $value);
+		foreach ($this->args['display_callbacks'] as $callback) {
+			call_user_func($callback, $this->id, $this->label, $value);
+		}
 	}
 
 }
