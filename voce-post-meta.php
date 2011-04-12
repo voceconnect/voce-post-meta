@@ -3,7 +3,7 @@
 class Voce_Meta_API {
 	private static $instance;
 	
-	var $groups;
+	private $groups;
 	
 	public static function GetInstance() {
 		
@@ -14,7 +14,11 @@ class Voce_Meta_API {
 		return self::$instance;
 	}
 	
-	function add_group($id, $title, $args = array()) {
+	private function __construct() {
+		$this->groups = array();
+	}
+	
+	public function add_group($id, $title, $args = array()) {
 		
 		if (! isset ( $this->groups [$id] )) {
 			$this->groups [$id] = new Voce_Meta_Group ( $id, $title, $args );
@@ -75,7 +79,7 @@ class Voce_Meta_Group {
 	 */
 	private $priority;
 	
-	function __construct($id, $title, $args) {
+	public function __construct($id, $title, $args) {
 		$defaults = array ('description' => '', 'capability' => '', 'context' => 'normal', 'priority' => 'default' );
 		$r = wp_parse_args ( $args, $defaults );
 		
@@ -90,13 +94,13 @@ class Voce_Meta_Group {
 		add_action ( 'add_meta_boxes', array ($this, 'add_metabox' ) );
 	}
 	
-	function add_metabox($post_type) {
+	public function _add_metabox($post_type) {
 		if (post_type_supports ( $post_type, $this->id )) {
-			add_meta_box ( $this->id, $$this->title, array ($this, 'display_group' ), $post_type, $this->context, $this->priority );
+			add_meta_box ( $this->id, $this->title, array ($this, '_display_group' ), $post_type, $this->context, $this->priority );
 		}
 	}
 	
-	function display_group() {
+	public function _display_group() {
 		if ($this->description) {
 			echo '<p>', esc_html ( $this->description ), '</p>';
 		}
