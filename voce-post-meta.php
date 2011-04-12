@@ -112,7 +112,15 @@ class Voce_Meta_Group {
 		wp_nonce_field("update_{$this->id}", "{$this->id}_nonce");
 	}
 
-	function add_field($type, $id, $label, $args = array()) {
+	/**
+	 * 
+	 * Creates, adds, and returns a new field for this group
+	 * @param string $type
+	 * @param string $id
+	 * @param string $label
+	 * @param array $args
+	 */
+	public function add_field($type, $id, $label, $args = array()) {
 
 		if (! isset ( $this->fields [$id] )) {
 			if ($type instanceof Voce_Meta_Field) {
@@ -123,7 +131,7 @@ class Voce_Meta_Group {
 		return $this->fields [$id];
 	}
 
-	function verify_nonce() {
+	private function verify_nonce() {
 
 		if (isset($_REQUEST["{$this->id}_nonce"])) {
 			return wp_verify_nonce($_REQUEST["{$this->id}_nonce"], "update_{$this->id}");
@@ -132,7 +140,7 @@ class Voce_Meta_Group {
 		return false;
 	}
 
-	function update_group($post_id, $post) {
+	public function update_group($post_id, $post) {
 
 		if (wp_is_post_autosave($post) || wp_is_post_revision($post) || !$this->verify_nonce()) {
 			return $post_id;
