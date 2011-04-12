@@ -259,11 +259,9 @@ class Voce_Meta_Field implements iVoce_Meta_Field {
 function voce_text_field_display($field, $value, $post_id) {
 	?>
 	<p>
-		<label><?php echo esc_html($field->label); ?></label>
-		<input type="text" name="<?php echo $field->id; ?>" value="<?php echo esc_attr($value); ?>" />
-		<?php if ($field->args['description']): ?>
-		<p><?php echo esc_html($field->args['description']); ?></p>
-		<?php endif; ?>
+		<label for="<?php echo $field->id; ?>"><?php echo esc_html($field->label); ?>:</label>
+		<input class="widefat" type="text" id="<?php echo $field->id; ?>" name="<?php echo $field->id; ?>" value="<?php echo esc_attr($value); ?>" />
+		<?php echo ($field->args['description'] ? ('<br>(' . esc_html($field->args['description']) . ')') : ''); ?>
 	</p>
 	<?php
 }
