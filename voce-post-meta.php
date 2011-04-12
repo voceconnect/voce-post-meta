@@ -222,7 +222,9 @@ class Voce_Meta_Field implements iVoce_Meta_Field {
 
 function voce_text_field_display($id, $label, $value) {
 	?>
-	<label><?php echo esc_html($label); ?></label>
-	<input type="text" name="<?php echo $id; ?>" value="<?php echo esc_attr($value); ?>" />
+	<p>
+		<label><?php echo esc_html($label); ?></label>
+		<input type="text" name="<?php echo $id; ?>" value="<?php echo esc_attr($value); ?>" />
+	</p>
 	<?php
 }
