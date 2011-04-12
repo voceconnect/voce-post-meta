@@ -145,7 +145,8 @@ class Voce_Meta_Group {
 			$api = Voce_Meta_API::GetInstance();
 			if (isset($api->type_mapping[$type])) {
 				$mapping = $api->type_mapping[$type];
-				$field_args = $mapping['args'];
+				$field_args = isset($func_args[2]) ? $func_args[2] : array();
+				$field_args = wp_parse_args($mapping['args'], $field_args);
 				return $this->add_field($mapping['class'], $func_args[0], $func_args[1], $field_args);
 			}
 			return null;
@@ -260,6 +261,9 @@ function voce_text_field_display($field, $value, $post_id) {
 	<p>
 		<label><?php echo esc_html($field->label); ?></label>
 		<input type="text" name="<?php echo $field->id; ?>" value="<?php echo esc_attr($value); ?>" />
+		<?php if ($field->args['description']): ?>
+		<p><?php echo esc_html($field->args['description']); ?></p>
+		<?php endif; ?>
 	</p>
 	<?php
 }
@@ -278,5 +282,5 @@ Voce_Meta_API::GetInstance()
 	))
 		->add_field_text('first_name', 'First Name')->group
 		->add_field_text('last_name', 'Last Name')->group
-		->add_field_numeric('age', 'Your Age');
+		->add_field_numeric('age', 'Your Age', array('description'=>'Your Age in years, decimals permitted.'));
 add_post_type_support('post', 'basic');
