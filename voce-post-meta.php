@@ -190,7 +190,7 @@ class Voce_Meta_Field implements iVoce_Meta_Field {
 			'capability' => $this->group->capability, 
 			'default_value' => '', 
 			'display_callbacks' => array('voce_text_field_display'),
-			'sanitize_callbacks' => array('vs_santize_text'),
+			'sanitize_callbacks' => array(),
 			'description' => ''
 		);
 		
@@ -208,23 +208,45 @@ class Voce_Meta_Field implements iVoce_Meta_Field {
 	function update_field($post_id) {
 		$old_value = $this->get_value($post_id);
 		$new_value = isset($_POST[$this->id]) ? $_POST[$this->id] : '';
+		foreach ($this->args['sanitize_callbacks'] as $callback) {
+			$new_value = call_user_func($callback, $this, $old_value, $new_value, $post_id);
+		}
 		update_post_meta($post_id, "{$this->group->id}_{$this->id}", $new_value);
 	}
 
 	function display_field($post_id) {
 		$value = $this->get_value($post_id);
 		foreach ($this->args['display_callbacks'] as $callback) {
-			call_user_func($callback, $this->id, $this->label, $value);
+			call_user_func($callback, $this, $value, $post_id);
 		}
 	}
 
 }
 
-function voce_text_field_display($id, $label, $value) {
+// stuff to test below
+
+function voce_text_field_display($field, $value, $post_id) {
 	?>
 	<p>
-		<label><?php echo esc_html($label); ?></label>
-		<input type="text" name="<?php echo $id; ?>" value="<?php echo esc_attr($value); ?>" />
+		<label><?php echo esc_html($field->label); ?></label>
+		<input type="text" name="<?php echo $field->id; ?>" value="<?php echo esc_attr($value); ?>" />
 	</p>
 	<?php
 }
+
+function voce_numeric_value($field, $old, $new, $post_id) {
+	if (is_numeric($new)) {
+		return $new;
+	}
+	return 0;
+}
+
+Voce_Meta_API::GetInstance()
+	->add_group('basic', 'Basic Options', array(
+		'description' => 'Just some basic options.',
+		'capability' => 'manage_options',
+	))
+		->add_field('Voce_Meta_Field', 'first_name', 'First Name')->group
+		->add_field('Voce_Meta_Field', 'last_name', 'Last Name')->group
+		->add_field('Voce_Meta_Field', 'age', 'Your Age', array('sanitize_callbacks'=>array('voce_numeric_value')));
+add_post_type_support('post', 'basic');
