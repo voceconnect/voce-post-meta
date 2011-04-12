@@ -123,7 +123,7 @@ class Voce_Meta_Group {
 	public function add_field($type, $id, $label, $args = array()) {
 		
 		if (! isset($this->fields[$id])) {
-			if ($type instanceof Voce_Meta_Field) {
+			if (class_exists($type) && in_array('iVoce_Meta_Field', class_implements($type))) {
 				$this->fields[$id] = new $type($id, $label, $args);
 			}
 		}
@@ -153,7 +153,11 @@ class Voce_Meta_Group {
 	}
 }
 
-class Voce_Meta_Field {
+interface iVoce_Meta_Field {
+	
+}
+
+class Voce_Meta_Field implements iVoce_Meta_Field {
 	private $group;
 	private $id;
 	private $label;
