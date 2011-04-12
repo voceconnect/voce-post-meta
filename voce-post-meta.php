@@ -106,7 +106,12 @@ class Voce_Meta_Group {
 	var $priority;
 
 	public function __construct($id, $title, $args) {
-		$defaults = array('description' => '', 'capability' => '', 'context' => 'normal', 'priority' => 'default');
+		$defaults = array(
+			'description' => '',
+			'capability' => 'edit_posts',
+			'context' => 'normal',
+			'priority' => 'default'
+		);
 		$r = wp_parse_args($args, $defaults);
 		
 		$this->fields = array();
@@ -224,16 +229,18 @@ class Voce_Meta_Field implements iVoce_Meta_Field {
 			'sanitize_callbacks' => array(),
 			'description' => ''
 		);
-		
 		$args = wp_parse_args($args, $defaults);
 		
 		$this->default_value = $args['default_value'];
-		$this->capability = $args['capability'];
 		$this->args = $args;
 	}
 
 	function get_value($post_id) {
-		return get_post_meta($post_id, "{$this->group->id}_{$this->id}", true);
+		$value = get_post_meta($post_id, "{$this->group->id}_{$this->id}", true);
+		if (('' === $value) && $this->default_value) {
+			$value = $this->default_value;
+		}
+		return $value;
 	}
 
 	function update_field($post_id) {
@@ -280,5 +287,8 @@ Voce_Meta_API::GetInstance()
 	))
 		->add_field_text('first_name', 'First Name')->group
 		->add_field_text('last_name', 'Last Name')->group
-		->add_field_numeric('age', 'Your Age', array('description'=>'Your Age in years, decimals permitted.'));
+		->add_field_numeric('age', 'Your Age', array(
+			'description' => 'Your Age in years, decimals permitted.',
+			'default_value' => 1
+		));
 add_post_type_support('post', 'basic');
