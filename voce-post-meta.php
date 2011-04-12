@@ -1,8 +1,17 @@
 <?php
+/*
+Plugin Name: Voce Meta API
+Plugin URI: http://plugins.voceconnect.com
+Description: A brief description of the Plugin.
+Version: The Plugin's Version Number, e.g.: 1.0
+Author: Name Of The Plugin Author
+Author URI: http://URI_Of_The_Plugin_Author
+License: A "Slug" license name e.g. GPL2
+*/
 
 class Voce_Meta_API {
 	private static $instance;
-	
+
 	private $groups;
 	
 	public static function GetInstance() {
@@ -13,11 +22,11 @@ class Voce_Meta_API {
 		
 		return self::$instance;
 	}
-	
+
 	private function __construct() {
 		$this->groups = array();
 	}
-	
+
 	public function add_group($id, $title, $args = array()) {
 		
 		if (! isset($this->groups[$id])) {
@@ -35,50 +44,50 @@ class Voce_Meta_Group {
 	 * Associative array of fields belonging to this group
 	 * @var array
 	 */
-	private $fields;
-	
+	var $fields;
+
 	/**
 	 *
 	 * ID of the group
 	 * @var string
 	 */
-	private $id;
-	
+	var $id;
+
 	/**
 	 *
 	 * Title of group
 	 * @var string
 	 */
-	private $title;
-	
+	var $title;
+
 	/**
 	 *
 	 * Descriptive text to display at the top of the metabox
 	 * @var string
 	 */
-	private $description;
-	
+	var $description;
+
 	/**
 	 *
 	 * Required capability to edit this group
 	 * @var string
 	 */
-	private $capability;
-	
+	var $capability;
+
 	/**
 	 *
 	 * Context used for the metabox
 	 * @var string
 	 */
-	private $context;
-	
+	var $context;
+
 	/**
 	 *
 	 * priority for the metabox
 	 * @var string
 	 */
-	private $priority;
-	
+	var $priority;
+
 	public function __construct($id, $title, $args) {
 		$defaults = array('description' => '', 'capability' => '', 'context' => 'normal', 'priority' => 'default');
 		$r = wp_parse_args($args, $defaults);
@@ -91,23 +100,24 @@ class Voce_Meta_Group {
 		$this->context = $r['context'];
 		$this->priority = $r['priority'];
 		
-		add_action('add_meta_boxes', array($this, 'add_metabox'));
+		add_action('add_meta_boxes', array($this, '_add_metabox'));
 		add_action('save_post', array($this, 'update_group'), 10, 2);
+
 	}
 	
 	public function _add_metabox($post_type) {
-		
-		if (post_type_supports($post_type, $this->id)) {
-			add_meta_box($this->id, $this->title, array($this, '_display_group'), $post_type, $this->context, $this->priority);
+
+		if (post_type_supports ( $post_type, $this->id ) && current_user_can($this->capability) ) {
+			add_meta_box ( $this->id, $this->title, array ($this, '_display_group' ), $post_type, $this->context, $this->priority );
 		}
 	}
-	
-	public function _display_group() {
+
+	public function _display_group($post) {
 		if ($this->description) {
 			echo '<p>', esc_html($this->description), '</p>';
 		}
 		foreach ( $this->fields as $field ) {
-			$field->display_field();
+			$field->display_field ($post->ID);
 		}
 		wp_nonce_field("update_{$this->id}", "{$this->id}_nonce");
 	}
@@ -123,8 +133,9 @@ class Voce_Meta_Group {
 	public function add_field($type, $id, $label, $args = array()) {
 		
 		if (! isset($this->fields[$id])) {
+
 			if (class_exists($type) && in_array('iVoce_Meta_Field', class_implements($type))) {
-				$this->fields[$id] = new $type($id, $label, $args);
+				$this->fields[$id] = new $type($this, $id, $label, $args);
 			}
 		}
 		
@@ -145,38 +156,40 @@ class Voce_Meta_Group {
 		if (wp_is_post_autosave($post) || wp_is_post_revision($post) || ! $this->verify_nonce()) {
 			return $post_id;
 		}
-		
-		foreach ( $this->fields as $field ) {
-			$field->update_field();
+
+
+		foreach ($this->fields as $field) {
+			$field->update_field($post_id);
 		}
 	
 	}
+
 }
+
 
 interface iVoce_Meta_Field {
 	
 }
 
 class Voce_Meta_Field implements iVoce_Meta_Field {
-	private $group;
-	private $id;
-	private $label;
-	private $display_callbacks;
-	private $sanitize_callbacks;
-	private $capability;
+
+	var $group;
+	var $id;
+	var $label;
+	var $display_callbacks;
+	var $sanitize_callbacks;
+	var $capability;
+	var $args;
 	
-	private $args;
-	
-	
-	public function __construct($group, $id, $label, $args) {
+	public function __construct($group, $id, $label, $args = array()) {
 		$this->group = $group;
-		$this->title = $title;
+		$this->label = $label;
 		$this->id = $id;
 		
 		$defaults = array(
 			'capability' => $this->group->capability, 
 			'default_value' => '', 
-			'display_callbacks' => '',
+			'display_callbacks' => array('voce_text_field_display'),
 			'sanitize_callbacks' => array('vs_santize_text'),
 			'description' => ''
 		);
@@ -188,4 +201,28 @@ class Voce_Meta_Field implements iVoce_Meta_Field {
 		$this->args = $args;
 	}
 
+	function get_value($post_id) {
+		return get_post_meta($post_id, "{$this->group->id}_{$this->id}", true);
+	}
+
+	function update_field($post_id) {
+		$old_value = $this->get_value($post_id);
+		$new_value = isset($_POST[$this->id]) ? $_POST[$this->id] : '';
+		update_post_meta($post_id, "{$this->group->id}_{$this->id}", $new_value);
+	}
+
+	function display_field($post_id) {
+		$value = $this->get_value($post_id);
+		foreach ($this->args['display_callbacks'] as $callback) {
+			call_user_func($callback, $this->id, $this->label, $value);
+		}
+	}
+
+}
+
+function voce_text_field_display($id, $label, $value) {
+	?>
+	<label><?php echo esc_html($label); ?></label>
+	<input type="text" name="<?php echo $id; ?>" value="<?php echo esc_attr($value); ?>" />
+	<?php
 }
