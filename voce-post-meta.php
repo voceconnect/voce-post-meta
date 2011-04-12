@@ -148,8 +148,8 @@ class Voce_Meta_Group {
 				$field_args = $mapping['args'];
 				return $this->add_field($mapping['class'], $func_args[0], $func_args[1], $field_args);
 			}
+			return null;
 		}
-		return $this;
 	}
 	
 	/**
