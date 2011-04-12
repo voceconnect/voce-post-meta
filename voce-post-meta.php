@@ -13,6 +13,7 @@ class Voce_Meta_API {
 	private static $instance;
 
 	private $groups;
+	public $type_mapping;
 	
 	public static function GetInstance() {
 		
@@ -25,6 +26,22 @@ class Voce_Meta_API {
 
 	private function __construct() {
 		$this->groups = array();
+
+		$mapping = array();
+		$mapping['text'] = array(
+			'class' => 'Voce_Meta_Field',
+			'args' => array(
+				'display_callbacks' => array('voce_text_field_display')
+			)
+		);
+		$mapping['numeric'] = array(
+			'class' => 'Voce_Meta_Field',
+			'args' => array(
+				'display_callbacks' => array('voce_text_field_display'),
+				'sanitize_callbacks' => array('voce_numeric_value')
+			)
+		);
+		$this->type_mapping = apply_filters('meta_type_mapping', $mapping);
 	}
 
 	public function add_group($id, $title, $args = array()) {
@@ -120,6 +137,19 @@ class Voce_Meta_Group {
 			$field->display_field ($post->ID);
 		}
 		wp_nonce_field("update_{$this->id}", "{$this->id}_nonce");
+	}
+
+	public function __call($name, $func_args) {
+		if (strpos($name, 'add_field_') === 0) {
+			$type = substr($name, 10);
+			$api = Voce_Meta_API::GetInstance();
+			if (isset($api->type_mapping[$type])) {
+				$mapping = $api->type_mapping[$type];
+				$field_args = $mapping['args'];
+				return $this->add_field($mapping['class'], $func_args[0], $func_args[1], $field_args);
+			}
+		}
+		return $this;
 	}
 	
 	/**
@@ -246,7 +276,7 @@ Voce_Meta_API::GetInstance()
 		'description' => 'Just some basic options.',
 		'capability' => 'manage_options',
 	))
-		->add_field('Voce_Meta_Field', 'first_name', 'First Name')->group
-		->add_field('Voce_Meta_Field', 'last_name', 'Last Name')->group
-		->add_field('Voce_Meta_Field', 'age', 'Your Age', array('sanitize_callbacks'=>array('voce_numeric_value')));
+		->add_field_text('first_name', 'First Name')->group
+		->add_field_text('last_name', 'Last Name')->group
+		->add_field_numeric('age', 'Your Age');
 add_post_type_support('post', 'basic');
