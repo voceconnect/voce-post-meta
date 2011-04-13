@@ -12,7 +12,7 @@ License: A "Slug" license name e.g. GPL2
 class Voce_Meta_API {
 	private static $instance;
 
-	private $groups;
+	public $groups;
 	public $type_mapping;
 	
 	public static function GetInstance() {
@@ -39,6 +39,18 @@ class Voce_Meta_API {
 			'args' => array(
 				'display_callbacks' => array('voce_text_field_display'),
 				'sanitize_callbacks' => array('voce_numeric_value')
+			)
+		);
+		$mapping['dropdown'] = array(
+			'class' => 'Voce_Meta_Field',
+			'args' => array(
+				'display_callbacks' => array('voce_dropdown_field_display')
+			)
+		);
+		$mapping['textarea'] = array(
+			'class' => 'Voce_Meta_Field',
+			'args' => array(
+				'display_callbacks' => array('voce_textarea_field_display')
 			)
 		);
 		$this->type_mapping = apply_filters('meta_type_mapping', $mapping);
@@ -179,7 +191,7 @@ class Voce_Meta_Group {
 	}
 	
 	private function verify_nonce() {
-		
+
 		if (isset($_REQUEST["{$this->id}_nonce"])) {
 			return wp_verify_nonce($_REQUEST["{$this->id}_nonce"], "update_{$this->id}");
 		}
@@ -188,11 +200,10 @@ class Voce_Meta_Group {
 	}
 	
 	public function update_group($post_id, $post) {
-		
+
 		if (wp_is_post_autosave($post) || wp_is_post_revision($post) || ! $this->verify_nonce()) {
 			return $post_id;
 		}
-
 
 		foreach ($this->fields as $field) {
 			$field->update_field($post_id);
@@ -261,7 +272,44 @@ class Voce_Meta_Field implements iVoce_Meta_Field {
 
 }
 
+function add_metadata_group($id, $title, $args = array()) {
+	return Voce_Meta_API::GetInstance()->add_group($id, $title, $args);
+}
+
+function add_metadata_field($group, $id, $label, $type = 'text', $args = array()) {
+	$api = Voce_Meta_API::GetInstance();
+	if (isset($api->groups[$group])) {
+		$func = "add_field_{$type}";
+		return $api->groups[$group]->$func($id, $label, $args);
+	}
+	return false;
+}
+
 // stuff to test below
+
+function voce_textarea_field_display($field, $current_value, $post_id) {
+	?>
+	<p>
+		<label for="<?php echo $field->id; ?>"><?php echo esc_html($field->label); ?>:</label>
+		<textarea class="widefat" name="<?php echo $field->id; ?>" id="meta_<?php echo $field->id; ?>"><?php echo esc_attr($current_value);?></textarea>
+		<?php echo ($field->args['description'] ? ('<br>(' . esc_html($field->args['description']) . ')') : ''); ?>
+	</p>
+	<?php
+}
+
+function voce_dropdown_field_display($field, $current_value, $post_id) {
+	?>
+	<p>
+		<label for="<?php echo $field->id; ?>"><?php echo esc_html($field->label); ?>:</label>
+        <select name="<?php echo $field->id; ?>" id="meta_<?php echo $field->id; ?>">
+        <?php foreach ($field->args['options'] as $key => $value): if (is_int($key)) {$key = $value;} ?>
+            <option value="<?php echo esc_attr($key); ?>" <?php selected($current_value, $key); ?>><?php echo esc_html($value); ?></option>
+        <?php endforeach; ?>
+        </select>
+		<?php echo ($field->args['description'] ? ('<br>(' . esc_html($field->args['description']) . ')') : ''); ?>
+	</p>
+	<?php
+}
 
 function voce_text_field_display($field, $value, $post_id) {
 	?>
@@ -280,15 +328,22 @@ function voce_numeric_value($field, $old, $new, $post_id) {
 	return 0;
 }
 
-Voce_Meta_API::GetInstance()
-	->add_group('basic', 'Basic Options', array(
-		'description' => 'Just some basic options.',
-		'capability' => 'manage_options',
-	))
-		->add_field_text('first_name', 'First Name')->group
-		->add_field_text('last_name', 'Last Name')->group
-		->add_field_numeric('age', 'Your Age', array(
-			'description' => 'Your Age in years, decimals permitted.',
-			'default_value' => 1
-		));
+
+add_metadata_group('basic', 'Basic Options', array('description' => 'Just some basic options.', 'capability' => 'manage_options'));
+
+add_metadata_field('basic', 'first_name', 'First Name', 'text');
+add_metadata_field('basic', 'last_name', 'Last Name', 'text');
+add_metadata_field('basic', 'age', 'Your Age', 'numeric', array(
+	'description' => 'Your Age in years, decimals permitted.',
+	'default_value' => 1
+));
+add_metadata_field('basic', 'gender', 'Gender', 'dropdown', array(
+	'options' => array(
+		'' => '',
+		'm' => 'Male',
+		'f' => 'Female'
+	)
+));
+add_metadata_field('basic', 'bio', 'Short Bio', 'textarea');
+
 add_post_type_support('post', 'basic');
