@@ -1,0 +1,16 @@
+Pattern: Create a group (metabox), then add fields to it.
+
+Example usage:
+
+Adding a "Basic Options" metabox with a "Your Name" field
+
+// add_metadata_group($group_id, $metabox_label, $additional_args = array())
+
+add_metadata_group('basic', 'Basic Options', array(
+	'description' => 'Just some basic options.',
+	'capability' => 'manage_options'
+));
+
+// add_metadata_field($group, $field_id, $field_label, $field_type, $additional_args = array());
+
+add_metadata_field('basic', 'first_name', 'First Name', 'text');
