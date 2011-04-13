@@ -243,6 +243,9 @@ class Voce_Meta_Field implements iVoce_Meta_Field {
 		$args = wp_parse_args($args, $defaults);
 		
 		$this->default_value = $args['default_value'];
+		$this->display_callbacks = $args['display_callbacks'];
+		$this->sanitize_callbacks = $args['sanitize_callbacks'];
+		$this->description = $args['description'];
 		$this->args = $args;
 	}
 
@@ -257,7 +260,7 @@ class Voce_Meta_Field implements iVoce_Meta_Field {
 	function update_field($post_id) {
 		$old_value = $this->get_value($post_id);
 		$new_value = isset($_POST[$this->id]) ? $_POST[$this->id] : '';
-		foreach ($this->args['sanitize_callbacks'] as $callback) {
+		foreach ($this->sanitize_callbacks as $callback) {
 			$new_value = call_user_func($callback, $this, $old_value, $new_value, $post_id);
 		}
 		update_post_meta($post_id, "{$this->group->id}_{$this->id}", $new_value);
@@ -265,7 +268,7 @@ class Voce_Meta_Field implements iVoce_Meta_Field {
 
 	function display_field($post_id) {
 		$value = $this->get_value($post_id);
-		foreach ($this->args['display_callbacks'] as $callback) {
+		foreach ($this->display_callbacks as $callback) {
 			call_user_func($callback, $this, $value, $post_id);
 		}
 	}
@@ -285,14 +288,14 @@ function add_metadata_field($group, $id, $label, $type = 'text', $args = array()
 	return false;
 }
 
-// stuff to test below
+// field display functions
 
 function voce_textarea_field_display($field, $current_value, $post_id) {
 	?>
 	<p>
 		<label for="<?php echo $field->id; ?>"><?php echo esc_html($field->label); ?>:</label>
 		<textarea class="widefat" name="<?php echo $field->id; ?>" id="meta_<?php echo $field->id; ?>"><?php echo esc_attr($current_value);?></textarea>
-		<?php echo ($field->args['description'] ? ('<br>(' . esc_html($field->args['description']) . ')') : ''); ?>
+		<?php echo ($field->description ? ('<br>(' . esc_html($field->description) . ')') : ''); ?>
 	</p>
 	<?php
 }
@@ -306,7 +309,7 @@ function voce_dropdown_field_display($field, $current_value, $post_id) {
             <option value="<?php echo esc_attr($key); ?>" <?php selected($current_value, $key); ?>><?php echo esc_html($value); ?></option>
         <?php endforeach; ?>
         </select>
-		<?php echo ($field->args['description'] ? ('<br>(' . esc_html($field->args['description']) . ')') : ''); ?>
+		<?php echo ($field->description ? ('<br>(' . esc_html($field->description) . ')') : ''); ?>
 	</p>
 	<?php
 }
@@ -316,7 +319,7 @@ function voce_text_field_display($field, $value, $post_id) {
 	<p>
 		<label for="<?php echo $field->id; ?>"><?php echo esc_html($field->label); ?>:</label>
 		<input class="widefat" type="text" id="<?php echo $field->id; ?>" name="<?php echo $field->id; ?>" value="<?php echo esc_attr($value); ?>" />
-		<?php echo ($field->args['description'] ? ('<br>(' . esc_html($field->args['description']) . ')') : ''); ?>
+		<?php echo ($field->description ? ('<br>(' . esc_html($field->description) . ')') : ''); ?>
 	</p>
 	<?php
 }
@@ -327,23 +330,3 @@ function voce_numeric_value($field, $old, $new, $post_id) {
 	}
 	return 0;
 }
-
-
-add_metadata_group('basic', 'Basic Options', array('description' => 'Just some basic options.', 'capability' => 'manage_options'));
-
-add_metadata_field('basic', 'first_name', 'First Name', 'text');
-add_metadata_field('basic', 'last_name', 'Last Name', 'text');
-add_metadata_field('basic', 'age', 'Your Age', 'numeric', array(
-	'description' => 'Your Age in years, decimals permitted.',
-	'default_value' => 1
-));
-add_metadata_field('basic', 'gender', 'Gender', 'dropdown', array(
-	'options' => array(
-		'' => '',
-		'm' => 'Male',
-		'f' => 'Female'
-	)
-));
-add_metadata_field('basic', 'bio', 'Short Bio', 'textarea');
-
-add_post_type_support('post', 'basic');
