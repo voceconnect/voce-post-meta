@@ -305,7 +305,7 @@ function voce_dropdown_field_display($field, $current_value, $post_id) {
 	<p>
 		<label for="<?php echo $field->id; ?>"><?php echo esc_html($field->label); ?>:</label>
         <select name="<?php echo $field->id; ?>" id="meta_<?php echo $field->id; ?>">
-        <?php foreach ($field->args['options'] as $key => $value): if (is_int($key)) {$key = $value;} ?>
+        <?php foreach ($field->args['options'] as $key => $value): ?>
             <option value="<?php echo esc_attr($key); ?>" <?php selected($current_value, $key); ?>><?php echo esc_html($value); ?></option>
         <?php endforeach; ?>
         </select>
