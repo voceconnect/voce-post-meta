@@ -290,10 +290,16 @@ function add_metadata_field($group, $id, $label, $type = 'text', $args = array()
 
 // field display functions
 
+function voce_field_label_display($field) {
+	if (property_exists($field, 'label') && ('' != $field->label)): ?>
+	<label for="<?php echo $field->id; ?>"><?php echo esc_html($field->label); ?>:</label>
+	<?php endif;
+}
+
 function voce_textarea_field_display($field, $current_value, $post_id) {
 	?>
 	<p>
-		<label for="<?php echo $field->id; ?>"><?php echo esc_html($field->label); ?>:</label>
+		<?php voce_field_label_display($field); ?>
 		<textarea class="widefat" name="<?php echo $field->id; ?>" id="meta_<?php echo $field->id; ?>"><?php echo esc_attr($current_value);?></textarea>
 		<?php echo ($field->description ? ('<br>(' . esc_html($field->description) . ')') : ''); ?>
 	</p>
@@ -303,7 +309,7 @@ function voce_textarea_field_display($field, $current_value, $post_id) {
 function voce_dropdown_field_display($field, $current_value, $post_id) {
 	?>
 	<p>
-		<label for="<?php echo $field->id; ?>"><?php echo esc_html($field->label); ?>:</label>
+		<?php voce_field_label_display($field); ?>
         <select name="<?php echo $field->id; ?>" id="meta_<?php echo $field->id; ?>">
         <?php foreach ($field->args['options'] as $key => $value): ?>
             <option value="<?php echo esc_attr($key); ?>" <?php selected($current_value, $key); ?>><?php echo esc_html($value); ?></option>
@@ -317,7 +323,7 @@ function voce_dropdown_field_display($field, $current_value, $post_id) {
 function voce_text_field_display($field, $value, $post_id) {
 	?>
 	<p>
-		<label for="<?php echo $field->id; ?>"><?php echo esc_html($field->label); ?>:</label>
+		<?php voce_field_label_display($field); ?>
 		<input class="widefat" type="text" id="<?php echo $field->id; ?>" name="<?php echo $field->id; ?>" value="<?php echo esc_attr($value); ?>" />
 		<?php echo ($field->description ? ('<br>(' . esc_html($field->description) . ')') : ''); ?>
 	</p>
