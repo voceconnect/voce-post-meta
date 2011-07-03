@@ -20,11 +20,11 @@ class Voce_Meta_API {
 	 * @return Voce_Meta_API
 	 */
 	public static function GetInstance() {
-		
+
 		if (! isset(self::$instance)) {
 			self::$instance = new Voce_Meta_API();
 		}
-		
+
 		return self::$instance;
 	}
 
@@ -68,12 +68,19 @@ class Voce_Meta_API {
 	 * @return Voce_Meta_Group
 	 */
 	public function add_group($id, $title, $args = array()) {
-		
+
 		if (! isset($this->groups[$id])) {
 			$this->groups[$id] = new Voce_Meta_Group($id, $title, $args);
 		}
-		
+
 		return $this->groups[$id];
+	}
+
+	public function get_meta_value($post_id, $group, $field) {
+		if (isset($this->groups[$group]) && isset($this->groups[$group]->fields[$field])) {
+			return $this->groups[$group]->fields[$field]->get_value($post_id);
+		}
+		return false;
 	}
 
 }
@@ -136,7 +143,7 @@ class Voce_Meta_Group {
 			'priority' => 'default'
 		);
 		$r = wp_parse_args($args, $defaults);
-		
+
 		$this->fields = array();
 		$this->id = $id;
 		$this->title = $title;
@@ -144,7 +151,7 @@ class Voce_Meta_Group {
 		$this->capability = $r['capability'];
 		$this->context = $r['context'];
 		$this->priority = $r['priority'];
-		
+
 		add_action('add_meta_boxes', array($this, '_add_metabox'));
 		add_action('save_post', array($this, 'update_group'), 10, 2);
 
@@ -184,9 +191,9 @@ class Voce_Meta_Group {
 			return null;
 		}
 	}
-	
+
 	/**
-	 * 
+	 *
 	 * Creates, adds, and returns a new field for this group
 	 * @param string $type
 	 * @param string $id
@@ -195,36 +202,39 @@ class Voce_Meta_Group {
 	 * @return iVoce_Meta_Field
 	 */
 	public function add_field($type, $id, $label, $args = array()) {
-		
+
 		if (! isset($this->fields[$id])) {
 
 			if (class_exists($type) && in_array('iVoce_Meta_Field', class_implements($type))) {
 				$this->fields[$id] = new $type($this, $id, $label, $args);
 			}
 		}
-		
+
 		return $this->fields[$id];
 	}
-	
+
 	private function verify_nonce() {
 
 		if (isset($_REQUEST["{$this->id}_nonce"])) {
 			return wp_verify_nonce($_REQUEST["{$this->id}_nonce"], "update_{$this->id}");
 		}
-		
+
 		return false;
 	}
-	
+
 	public function update_group($post_id, $post) {
 
-		if (wp_is_post_autosave($post) || wp_is_post_revision($post) || ! $this->verify_nonce()) {
+		if (	wp_is_post_autosave($post) ||
+				wp_is_post_revision($post) ||
+				! post_type_supports ($post->post_type, $this->id) ||
+				! $this->verify_nonce()									) {
 			return $post_id;
 		}
 
 		foreach ($this->fields as $field) {
 			$field->update_field($post_id);
 		}
-	
+
 	}
 
 }
@@ -245,21 +255,21 @@ class Voce_Meta_Field implements iVoce_Meta_Field {
 	var $sanitize_callbacks;
 	var $capability;
 	var $args;
-	
+
 	public function __construct($group, $id, $label, $args = array()) {
 		$this->group = $group;
 		$this->label = $label;
 		$this->id = $id;
-		
+
 		$defaults = array(
-			'capability' => $this->group->capability, 
-			'default_value' => '', 
+			'capability' => $this->group->capability,
+			'default_value' => '',
 			'display_callbacks' => array('voce_text_field_display'),
 			'sanitize_callbacks' => array(),
 			'description' => ''
 		);
 		$args = wp_parse_args($args, $defaults);
-		
+
 		$this->default_value = $args['default_value'];
 		$this->display_callbacks = $args['display_callbacks'];
 		$this->sanitize_callbacks = $args['sanitize_callbacks'];
