@@ -14,7 +14,11 @@ class Voce_Meta_API {
 
 	public $groups;
 	public $type_mapping;
-	
+
+	/**
+	 *
+	 * @return Voce_Meta_API
+	 */
 	public static function GetInstance() {
 		
 		if (! isset(self::$instance)) {
@@ -56,6 +60,13 @@ class Voce_Meta_API {
 		$this->type_mapping = apply_filters('meta_type_mapping', $mapping);
 	}
 
+	/**
+	 *
+	 * @param string $id
+	 * @param string $title
+	 * @param array $args
+	 * @return Voce_Meta_Group
+	 */
 	public function add_group($id, $title, $args = array()) {
 		
 		if (! isset($this->groups[$id])) {
@@ -138,7 +149,11 @@ class Voce_Meta_Group {
 		add_action('save_post', array($this, 'update_group'), 10, 2);
 
 	}
-	
+
+	/**
+	 *
+	 * @param string $post_type
+	 */
 	public function _add_metabox($post_type) {
 
 		if (post_type_supports ( $post_type, $this->id ) && current_user_can($this->capability) ) {
@@ -177,6 +192,7 @@ class Voce_Meta_Group {
 	 * @param string $id
 	 * @param string $label
 	 * @param array $args
+	 * @return iVoce_Meta_Field
 	 */
 	public function add_field($type, $id, $label, $args = array()) {
 		
@@ -213,9 +229,11 @@ class Voce_Meta_Group {
 
 }
 
-
 interface iVoce_Meta_Field {
-	
+
+	public function __construct($group, $id, $label, $args);
+	public function update_field($post_id);
+	public function display_field($post_id);
 }
 
 class Voce_Meta_Field implements iVoce_Meta_Field {
@@ -249,7 +267,7 @@ class Voce_Meta_Field implements iVoce_Meta_Field {
 		$this->args = $args;
 	}
 
-	function get_value($post_id) {
+	public function get_value($post_id) {
 		$value = get_post_meta($post_id, "{$this->group->id}_{$this->id}", true);
 		if (('' === $value) && $this->default_value) {
 			$value = $this->default_value;
@@ -257,7 +275,7 @@ class Voce_Meta_Field implements iVoce_Meta_Field {
 		return $value;
 	}
 
-	function update_field($post_id) {
+	public function update_field($post_id) {
 		$old_value = $this->get_value($post_id);
 		$new_value = isset($_POST[$this->id]) ? $_POST[$this->id] : '';
 		foreach ($this->sanitize_callbacks as $callback) {
@@ -266,7 +284,7 @@ class Voce_Meta_Field implements iVoce_Meta_Field {
 		update_post_meta($post_id, "{$this->group->id}_{$this->id}", $new_value);
 	}
 
-	function display_field($post_id) {
+	public function display_field($post_id) {
 		$value = $this->get_value($post_id);
 		foreach ($this->display_callbacks as $callback) {
 			call_user_func($callback, $this, $value, $post_id);
@@ -275,6 +293,13 @@ class Voce_Meta_Field implements iVoce_Meta_Field {
 
 }
 
+/**
+ *
+ * @param string $id
+ * @param string $title
+ * @param array $args
+ * @return Voce_Meta_Group
+ */
 function add_metadata_group($id, $title, $args = array()) {
 	return Voce_Meta_API::GetInstance()->add_group($id, $title, $args);
 }
