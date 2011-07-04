@@ -241,7 +241,7 @@ class Voce_Meta_Group {
 
 interface iVoce_Meta_Field {
 
-	public function __construct($group, $id, $label, $args);
+	public function __construct($group, $id, $label, $args = array());
 	public function update_field($post_id);
 	public function display_field($post_id);
 }
