@@ -341,6 +341,16 @@ function voce_textarea_field_display($field, $current_value, $post_id) {
 	<?php
 }
 
+function voce_checkbox_field_display($field, $current_value, $post_id) {
+	?>
+	<p>
+		<?php voce_field_label_display($field); ?>
+		<input type="checkbox" name="<?php echo $field->id; ?>" id="meta_<?php echo $field->id; ?>" <?php checked($current_value, true); ?> />
+		<?php echo ($field->description ? ('<br>(' . esc_html($field->description) . ')') : ''); ?>
+	</p>
+	<?php
+}
+
 function voce_dropdown_field_display($field, $current_value, $post_id) {
 	?>
 	<p>
