@@ -289,7 +289,8 @@ class Voce_Meta_Field implements iVoce_Meta_Field {
 		$old_value = $this->get_value($post_id);
 		$new_value = isset($_POST[$this->id]) ? $_POST[$this->id] : '';
 		foreach ($this->sanitize_callbacks as $callback) {
-			$new_value = call_user_func($callback, $this, $old_value, $new_value, $post_id);
+			if(  is_callable( $callback ))
+				$new_value = call_user_func($callback, $this, $old_value, $new_value, $post_id);
 		}
 		update_post_meta($post_id, "{$this->group->id}_{$this->id}", $new_value);
 	}
@@ -297,7 +298,8 @@ class Voce_Meta_Field implements iVoce_Meta_Field {
 	public function display_field($post_id) {
 		$value = $this->get_value($post_id);
 		foreach ($this->display_callbacks as $callback) {
-			call_user_func($callback, $this, $value, $post_id);
+			if(is_callable($callback))
+				call_user_func($callback, $this, $value, $post_id);
 		}
 	}
 
