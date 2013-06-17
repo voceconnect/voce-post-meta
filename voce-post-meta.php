@@ -72,6 +72,15 @@ class Voce_Meta_API {
 				'display_callbacks' => array( 'voce_checkbox_field_display' )
 			)
 		);
+		$mapping['wp_editor'] = array(
+			'class' => 'Voce_Meta_Field',
+			'args' => array(
+				'display_callbacks' => array('voce_wp_editor_field_display'),
+				'wp_editor_args' => array(
+					'textarea_rows' => 10
+				)
+			)
+		);
 		$this->type_mapping = apply_filters( 'meta_type_mapping', $mapping );
 	}
 
@@ -519,6 +528,19 @@ function voce_text_field_display( $field, $value, $post_id ) {
 		<input class="widefat" type="text" id="<?php echo esc_attr( $field->id ); ?>" name="<?php echo esc_attr( $field->id ); ?>" value="<?php echo esc_attr( $value ); ?>"  />
 		<?php echo ($field->description ? ('<br><span class="description">' . esc_html( $field->description ) . '</span>') : ''); ?>
 	</p>
+	<?php
+}
+
+function voce_wp_editor_field_display($field, $current_value, $post_id) {
+	?>
+	<div class="voce-post-meta-wp-editor">
+		<?php voce_field_label_display($field);
+			echo '<div class="wp-editor-wrapper">';
+			wp_editor( $current_value, $field->id, $field->args['wp_editor_args'] );
+			echo '</div>';
+			echo $field->description ? '<br><span class="description">' . $field->description . '</span>' : '';
+		?>
+	</div>
 	<?php
 }
 
