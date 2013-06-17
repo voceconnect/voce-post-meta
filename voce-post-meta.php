@@ -29,7 +29,7 @@ class Voce_Meta_API {
 	}
 
 	/**
-	 * @constructor 
+	 * @constructor
 	 */
 	private function __construct() {
 		$this->groups = array( );
@@ -96,7 +96,7 @@ class Voce_Meta_API {
 	 * @param integer $post_id
 	 * @param string $group
 	 * @param string $field
-	 * @return boolean 
+	 * @return boolean
 	 */
 	public function get_meta_value( $post_id, $group, $field ) {
 		if ( isset( $this->groups[$group] ) && isset( $this->groups[$group]->fields[$field] ) ) {
@@ -159,7 +159,7 @@ class Voce_Meta_Group {
 	var $priority;
 
 	/**
-	 * 
+	 *
 	 * @param interger id
 	 * @param string title
 	 * @param array args
@@ -200,7 +200,7 @@ class Voce_Meta_Group {
 
 	/**
 	 * @method _display_group
-	 * @param type $post 
+	 * @param type $post
 	 */
 	public function _display_group( $post ) {
 		if ( $this->description ) {
@@ -216,7 +216,7 @@ class Voce_Meta_Group {
 	 * @method __call
 	 * @param string $name
 	 * @param array $func_args
-	 * @return null 
+	 * @return null
 	 */
 	public function __call( $name, $func_args ) {
 		if ( strpos( $name, 'add_field_' ) === 0 ) {
@@ -225,7 +225,7 @@ class Voce_Meta_Group {
 			if ( isset( $api->type_mapping[$type] ) ) {
 				$mapping = $api->type_mapping[$type];
 				$field_args = isset( $func_args[2] ) ? $func_args[2] : array( );
-				$field_args = wp_parse_args( $mapping['args'], $field_args );
+				$field_args = wp_parse_args( $field_args, $mapping['args'] );
 				return $this->add_field( $mapping['class'], $func_args[0], $func_args[1], $field_args );
 			}
 			return null;
@@ -254,8 +254,24 @@ class Voce_Meta_Group {
 	}
 
 	/**
+	 *
+	 * Deletes a field for this group
+	 * @param string $id
+	 * @return bool
+	 */
+	public function remove_field( $id ) {
+
+		if ( isset( $this->fields[$id] ) ){
+			unset( $this->fields[$id] );
+			return true;
+		}
+
+		return false;
+	}
+
+	/**
 	 * @method verfiy_nonce
-	 * @return boolean 
+	 * @return boolean
 	 */
 	private function verify_nonce() {
 
@@ -270,7 +286,7 @@ class Voce_Meta_Group {
 	 * @method update_group
 	 * @param type $post_id
 	 * @param type $post
-	 * @return type 
+	 * @return type
 	 */
 	public function update_group( $post_id, $post ) {
 
@@ -298,7 +314,7 @@ interface iVoce_Meta_Field {
 }
 
 /**
- * @class Voce_Meta_Field 
+ * @class Voce_Meta_Field
  */
 class Voce_Meta_Field implements iVoce_Meta_Field {
 
@@ -316,7 +332,7 @@ class Voce_Meta_Field implements iVoce_Meta_Field {
 	 * @param string $group
 	 * @param integer $id
 	 * @param string $label
-	 * @param array $args 
+	 * @param array $args
 	 */
 	public function __construct( $group, $id, $label, $args = array( ) ) {
 		$this->group = $group;
@@ -342,9 +358,9 @@ class Voce_Meta_Field implements iVoce_Meta_Field {
 
 	/**
 	 * Returns post meta value
-	 * 
+	 *
 	 * @param integer $post_id
-	 * @return string|bool Returns default value if meta returns empty 
+	 * @return string|bool Returns default value if meta returns empty
 	 */
 	public function get_value( $post_id ) {
 		$value = get_post_meta( $post_id, "{$this->group->id}_{$this->id}", true );
@@ -356,7 +372,7 @@ class Voce_Meta_Field implements iVoce_Meta_Field {
 
 	/**
 	 * Update post meta
-	 * @param type $post_id 
+	 * @param type $post_id
 	 */
 	public function update_field( $post_id ) {
 		$old_value = $this->get_value( $post_id );
@@ -370,8 +386,8 @@ class Voce_Meta_Field implements iVoce_Meta_Field {
 
 	/**
 	 * Output HTML from application callback or user defined callback
-	 * 
-	 * @param type $post_id 
+	 *
+	 * @param type $post_id
 	 */
 	public function display_field( $post_id ) {
 		$value = $this->get_value( $post_id );
@@ -401,7 +417,7 @@ function add_metadata_group( $id, $title, $args = array( ) ) {
  * @param string $label
  * @param string $type
  * @param array $args
- * @return boolean 
+ * @return boolean
  */
 function add_metadata_field( $group, $id, $label, $type = 'text', $args = array( ) ) {
 	$api = Voce_Meta_API::GetInstance();
@@ -413,13 +429,27 @@ function add_metadata_field( $group, $id, $label, $type = 'text', $args = array(
 }
 
 /**
+ * @method remove_metadata_field
+ * @param string $group
+ * @param integer $id
+ * @return boolean
+ */
+function remove_metadata_field( $group, $id ) {
+	$api = Voce_Meta_API::GetInstance();
+	if ( isset( $api->groups[$group] ) ) {
+		return $api->groups[$group]->remove_field( $id );
+	}
+	return false;
+}
+
+/**
  * @method voce_field_label_display
- * @param string $field 
+ * @param string $field
  */
 function voce_field_label_display( $field ) {
 	if ( property_exists( $field, 'label' ) && ('' != $field->label) ):
 		?>
-		<label for="<?php echo $field->id; ?>"><?php echo esc_html( $field->label ); ?>:</label>
+		<label for="<?php echo esc_attr( $field->id ); ?>"><?php echo esc_html( $field->label ); ?>:</label>
 		<?php
 	endif;
 }
@@ -428,14 +458,14 @@ function voce_field_label_display( $field ) {
  * @method voce_textarea_field_display
  * @param string $field
  * @param type $current_value
- * @param integer $post_id 
+ * @param integer $post_id
  */
 function voce_textarea_field_display( $field, $current_value, $post_id ) {
 	?>
 	<p>
 		<?php voce_field_label_display( $field ); ?>
-		<textarea class="widefat" name="<?php echo $field->id; ?>" id="meta_<?php echo $field->id; ?>"><?php echo esc_attr( $current_value ); ?></textarea>
-		<?php echo ($field->description ? ('<br>(' . esc_html( $field->description ) . ')') : ''); ?>
+		<textarea class="widefat" name="<?php echo esc_attr( $field->id ); ?>" id="<?php echo esc_attr( 'meta_' . $field->id ); ?>"><?php echo esc_attr( $current_value ); ?></textarea>
+		<?php echo ($field->description ? ('<br><span class="description">' . esc_html( $field->description ) . '</span>') : ''); ?>
 	</p>
 	<?php
 }
@@ -444,14 +474,14 @@ function voce_textarea_field_display( $field, $current_value, $post_id ) {
  * @method voce_checkbox_field_display
  * @param string $field
  * @param type $current_value
- * @param integer $post_id 
+ * @param integer $post_id
  */
 function voce_checkbox_field_display( $field, $current_value, $post_id ) {
 	?>
 	<p>
 		<?php voce_field_label_display( $field ); ?>
-		<input type="checkbox" name="<?php echo $field->id; ?>" id="meta_<?php echo $field->id; ?>" <?php checked( $current_value, 'on' ); ?> />
-		<?php echo ($field->description ? ('<br>(' . esc_html( $field->description ) . ')') : ''); ?>
+		<input type="checkbox" name="<?php echo esc_attr( $field->id ); ?>" id="<?php echo esc_attr( 'meta_' . $field->id ); ?>" <?php checked( $current_value, 'on' ); ?> />
+		<?php echo ($field->description ? ('<br><span class="description">' . esc_html( $field->description ) . '</span>') : ''); ?>
 	</p>
 	<?php
 }
@@ -460,18 +490,18 @@ function voce_checkbox_field_display( $field, $current_value, $post_id ) {
  * @method voce_dropdown_field_display
  * @param string $field
  * @param type $current_value
- * @param integer $post_id 
+ * @param integer $post_id
  */
 function voce_dropdown_field_display( $field, $current_value, $post_id ) {
 	?>
 	<p>
 		<?php voce_field_label_display( $field ); ?>
-		<select name="<?php echo $field->id; ?>" id="meta_<?php echo $field->id; ?>">
+		<select name="<?php echo esc_attr( $field->id ); ?>" id="<?php echo esc_attr( 'meta_' . $field->id ); ?>">
 			<?php foreach ($field->args['options'] as $key => $value): ?>
 				<option value="<?php echo esc_attr( $key ); ?>" <?php selected( $current_value, $key ); ?>><?php echo esc_html( $value ); ?></option>
 			<?php endforeach; ?>
 		</select>
-		<?php echo ($field->description ? ('<br>(' . esc_html( $field->description ) . ')') : ''); ?>
+		<?php echo ($field->description ? ('<br><span class="description">' . esc_html( $field->description ) . '</span>)') : ''); ?>
 	</p>
 	<?php
 }
@@ -480,14 +510,14 @@ function voce_dropdown_field_display( $field, $current_value, $post_id ) {
  * @method voce_text_field_display
  * @param string $field
  * @param type $value
- * @param integer $post_id 
+ * @param integer $post_id
  */
 function voce_text_field_display( $field, $value, $post_id ) {
 	?>
 	<p>
 		<?php voce_field_label_display( $field ); ?>
-		<input class="widefat" type="text" id="<?php echo $field->id; ?>" name="<?php echo $field->id; ?>" value="<?php echo esc_attr( $value ); ?>"  />
-		<?php echo ($field->description ? ('<br>(' . esc_html( $field->description ) . ')') : ''); ?>
+		<input class="widefat" type="text" id="<?php echo esc_attr( $field->id ); ?>" name="<?php echo esc_attr( $field->id ); ?>" value="<?php echo esc_attr( $value ); ?>"  />
+		<?php echo ($field->description ? ('<br><span class="description">' . esc_html( $field->description ) . '</span>') : ''); ?>
 	</p>
 	<?php
 }
@@ -496,13 +526,11 @@ function voce_text_field_display( $field, $value, $post_id ) {
  * @method voce_hidden_field_display
  * @param type $field
  * @param type $value
- * @param integer $post_id 
+ * @param integer $post_id
  */
 function voce_hidden_field_display( $field, $value, $post_id ) {
 	?>
-	<p>
-		<input class="hidden" type="hidden" id="<?php echo $field->id; ?>" name="<?php echo $field->id; ?>" value="<?php echo esc_attr( $value ); ?>"  />
-	</p>
+	<input class="hidden" type="hidden" id="<?php echo esc_attr( $field->id ); ?>" name="<?php echo esc_attr( $field->id ); ?>" value="<?php echo esc_attr( $value ); ?>"  />
 	<?php
 }
 
@@ -512,7 +540,7 @@ function voce_hidden_field_display( $field, $value, $post_id ) {
  * @param type $old
  * @param type $new
  * @param integer $post_id
- * @return int 
+ * @return int
  */
 function voce_numeric_value( $field, $old, $new, $post_id ) {
 	if ( is_numeric( $new ) ) {
