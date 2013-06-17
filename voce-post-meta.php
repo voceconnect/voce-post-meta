@@ -261,10 +261,12 @@ class Voce_Meta_Group {
 	 */
 	public function remove_field( $id ) {
 
-		if ( isset( $this->fields[$id] ) )
+		if ( isset( $this->fields[$id] ) ){
 			unset( $this->fields[$id] );
+			return true;
+		}
 
-		return $this->fields;
+		return false;
 	}
 
 	/**
