@@ -329,6 +329,8 @@ class Voce_Meta_Field implements iVoce_Meta_Field {
 
 	var $group;
 	var $id;
+	var $input_id;
+	var $name;
 	var $label;
 	var $post_type;
 	var $display_callbacks;
@@ -347,6 +349,8 @@ class Voce_Meta_Field implements iVoce_Meta_Field {
 		$this->group = $group;
 		$this->label = $label;
 		$this->id = $id;
+		$this->name = "{$group->id}[{$id}]";
+		$this->input_id = "{$group->id}_{$id}";
 		$this->post_type = get_post_type( $id );
 
 		$defaults = array(
@@ -385,7 +389,9 @@ class Voce_Meta_Field implements iVoce_Meta_Field {
 	 */
 	public function update_field( $post_id ) {
 		$old_value = $this->get_value( $post_id );
-		$new_value = isset( $_POST[$this->id] ) ? $_POST[$this->id] : '';
+		// error_log(print_r($_POST[$this->group->id], true));
+		// error_log($this->id);
+		$new_value = isset( $_POST[$this->group->id][$this->id] ) ? $_POST[$this->group->id][$this->id] : '';
 		foreach ($this->sanitize_callbacks as $callback) {
 			if ( is_callable( $callback ) )
 				$new_value = call_user_func( $callback, $this, $old_value, $new_value, $post_id );
@@ -458,7 +464,7 @@ function remove_metadata_field( $group, $id ) {
 function voce_field_label_display( $field ) {
 	if ( property_exists( $field, 'label' ) && ('' != $field->label) ):
 		?>
-		<label for="<?php echo esc_attr( $field->id ); ?>"><?php echo esc_html( $field->label ); ?>:</label>
+		<label for="<?php echo esc_attr( $field->input_id ) ?>"><?php echo esc_html( $field->label ); ?>:</label>
 		<?php
 	endif;
 }
@@ -473,7 +479,7 @@ function voce_textarea_field_display( $field, $current_value, $post_id ) {
 	?>
 	<p>
 		<?php voce_field_label_display( $field ); ?>
-		<textarea class="widefat" name="<?php echo esc_attr( $field->id ); ?>" id="<?php echo esc_attr( 'meta_' . $field->id ); ?>"><?php echo esc_attr( $current_value ); ?></textarea>
+		<textarea class="widefat" id="<?php echo esc_attr( $field->input_id ); ?>" name="<?php echo esc_attr( $field->name ); ?>"><?php echo esc_attr( $current_value ); ?></textarea>
 		<?php echo ($field->description ? ('<br><span class="description">' . esc_html( $field->description ) . '</span>') : ''); ?>
 	</p>
 	<?php
@@ -489,7 +495,7 @@ function voce_checkbox_field_display( $field, $current_value, $post_id ) {
 	?>
 	<p>
 		<?php voce_field_label_display( $field ); ?>
-		<input type="checkbox" name="<?php echo esc_attr( $field->id ); ?>" id="<?php echo esc_attr( 'meta_' . $field->id ); ?>" <?php checked( $current_value, 'on' ); ?> />
+		<input type="checkbox" id="<?php echo esc_attr( $field->input_id ); ?>" name="<?php echo esc_attr( $field->name ) ?>" <?php checked( $current_value, 'on' ); ?> />
 		<?php echo ($field->description ? ('<br><span class="description">' . esc_html( $field->description ) . '</span>') : ''); ?>
 	</p>
 	<?php
@@ -505,7 +511,7 @@ function voce_dropdown_field_display( $field, $current_value, $post_id ) {
 	?>
 	<p>
 		<?php voce_field_label_display( $field ); ?>
-		<select name="<?php echo esc_attr( $field->id ); ?>" id="<?php echo esc_attr( 'meta_' . $field->id ); ?>">
+		<select id="<?php echo esc_attr( $field->input_id ); ?>" name="<?php echo esc_attr( $field->name ); ?>">
 			<?php foreach ($field->args['options'] as $key => $value): ?>
 				<option value="<?php echo esc_attr( $key ); ?>" <?php selected( $current_value, $key ); ?>><?php echo esc_html( $value ); ?></option>
 			<?php endforeach; ?>
@@ -525,7 +531,7 @@ function voce_text_field_display( $field, $value, $post_id ) {
 	?>
 	<p>
 		<?php voce_field_label_display( $field ); ?>
-		<input class="widefat" type="text" id="<?php echo esc_attr( $field->id ); ?>" name="<?php echo esc_attr( $field->id ); ?>" value="<?php echo esc_attr( $value ); ?>"  />
+		<input class="widefat" type="text" id="<?php echo esc_attr( $field->input_id ); ?>" name="<?php echo esc_attr( $field->name ); ?>" value="<?php echo esc_attr( $value ); ?>"  />
 		<?php echo ($field->description ? ('<br><span class="description">' . esc_html( $field->description ) . '</span>') : ''); ?>
 	</p>
 	<?php
@@ -536,7 +542,7 @@ function voce_wp_editor_field_display($field, $current_value, $post_id) {
 	<div class="voce-post-meta-wp-editor">
 		<?php voce_field_label_display($field);
 			echo '<div class="wp-editor-wrapper">';
-			wp_editor( $current_value, $field->id, $field->args['wp_editor_args'] );
+			wp_editor( $current_value, $field->name, $field->args['wp_editor_args'] );
 			echo '</div>';
 			echo $field->description ? '<br><span class="description">' . $field->description . '</span>' : '';
 		?>
@@ -552,7 +558,7 @@ function voce_wp_editor_field_display($field, $current_value, $post_id) {
  */
 function voce_hidden_field_display( $field, $value, $post_id ) {
 	?>
-	<input class="hidden" type="hidden" id="<?php echo esc_attr( $field->id ); ?>" name="<?php echo esc_attr( $field->id ); ?>" value="<?php echo esc_attr( $value ); ?>"  />
+	<input class="hidden" type="hidden" id="<?php echo esc_attr( $field->input_id ); ?>" name="<?php echo esc_attr( $field->name ); ?>" value="<?php echo esc_attr( $value ); ?>"  />
 	<?php
 }
 
