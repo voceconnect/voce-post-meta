@@ -389,8 +389,6 @@ class Voce_Meta_Field implements iVoce_Meta_Field {
 	 */
 	public function update_field( $post_id ) {
 		$old_value = $this->get_value( $post_id );
-		// error_log(print_r($_POST[$this->group->id], true));
-		// error_log($this->id);
 		$new_value = isset( $_POST[$this->group->id][$this->id] ) ? $_POST[$this->group->id][$this->id] : '';
 		foreach ($this->sanitize_callbacks as $callback) {
 			if ( is_callable( $callback ) )
