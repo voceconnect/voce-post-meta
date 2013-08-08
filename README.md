@@ -41,7 +41,7 @@ add_action('init', function(){
 ?>
 ```
 
-**1.1**
+**1.1**  
 *Adding WP Editor**
 
 **1.0**  
