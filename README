@@ -15,15 +15,17 @@ Creates a group (metabox), then adds fields to it.
 == Instructions ==
 
 1. Upload `voce-post-meta` to the `/wp-content/plugins/` directory
-1. Activate the plugin through the 'Plugins' menu in WordPress
-1. Create post meta fields like this
+2. Activate the plugin through the 'Plugins' menu in WordPress
+3. Create post meta fields like this:
 ```
 add_action('init', function(){
 	add_metadata_group( 'demo_meta', 'Page Options', array(
 		'description' => 'Just some basic options.',
 		'capability'  => 'edit_posts'
 	));
-	add_metadata_field( 'demo_meta', 'new_field', 'Demo Field', 'text' );
+	add_metadata_field( 'demo_meta', 'new_field', 'Demo Field', 'text', array(
+		'description' => 'Enter a string. Example: <code>a string</code>'
+	));
 	add_post_type_support( 'page', 'demo_meta' );
 });
 ```
