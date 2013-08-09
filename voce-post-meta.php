@@ -1,12 +1,10 @@
 <?php
 /*
-  Plugin Name: Voce Meta API
-  Plugin URI: http://plugins.voceconnect.com
-  Description: A brief description of the Plugin.
-  Version: The Plugin's Version Number, e.g.: 1.0
-  Author: Name Of The Plugin Author
-  Author URI: http://URI_Of_The_Plugin_Author
-  License: A "Slug" license name e.g. GPL2
+  Plugin Name: Voce Post Meta
+  Description: Allow easily adding meta fields to post types
+  Version: 1.2
+  Author: prettyboymp, kevinlangleyjr, jeffstieler, markparolisi, banderon
+  License: GPLv2 or later
  */
 
 class Voce_Meta_API {
@@ -14,6 +12,8 @@ class Voce_Meta_API {
 	private static $instance;
 	public $groups;
 	public $type_mapping;
+	public $label_allowed_html;
+	public $description_allowed_html;
 
 	/**
 	 *
@@ -32,9 +32,9 @@ class Voce_Meta_API {
 	 * @constructor
 	 */
 	private function __construct() {
-		$this->groups = array( );
+		$this->groups = array();
 
-		$mapping = array( );
+		$mapping = array();
 		$mapping['text'] = array(
 			'class' => 'Voce_Meta_Field',
 			'args' => array(
@@ -81,7 +81,23 @@ class Voce_Meta_API {
 				)
 			)
 		);
+
 		$this->type_mapping = apply_filters( 'meta_type_mapping', $mapping );
+
+		$allowed_html = array(
+			'a' => array(
+				'href' => array(),
+				'title' => array()
+			),
+			'br' => array(),
+			'em' => array(),
+			'strong' => array(),
+			'code' => array(),
+			'pre' => array()
+		);
+
+		$this->label_allowed_html = apply_filters( 'voce_meta_label_allowed_html', $allowed_html );
+		$this->description_allowed_html = apply_filters( 'voce_meta_description_allowed_html', $allowed_html );
 	}
 
 	/**
@@ -91,7 +107,7 @@ class Voce_Meta_API {
 	 * @param array $args
 	 * @return Voce_Meta_Group
 	 */
-	public function add_group( $id, $title, $args = array( ) ) {
+	public function add_group( $id, $title, $args = array() ) {
 
 		if ( !isset( $this->groups[$id] ) ) {
 			$this->groups[$id] = new Voce_Meta_Group( $id, $title, $args );
@@ -183,7 +199,7 @@ class Voce_Meta_Group {
 		);
 		$r = wp_parse_args( $args, $defaults );
 
-		$this->fields = array( );
+		$this->fields = array();
 		$this->id = $id;
 		$this->title = $title;
 		$this->description = $r['description'];
@@ -212,9 +228,7 @@ class Voce_Meta_Group {
 	 * @param type $post
 	 */
 	public function _display_group( $post ) {
-		if ( $this->description ) {
-			echo '<p>', esc_html( $this->description ), '</p>';
-		}
+		echo !empty( $this->description ) ? ('<p class="description">' . wp_kses( $this->description, Voce_Meta_API::GetInstance()->description_allowed_html ) . '</p>') : '';
 		foreach ($this->fields as $field) {
 			$field->display_field( $post->ID );
 		}
@@ -233,7 +247,7 @@ class Voce_Meta_Group {
 			$api = Voce_Meta_API::GetInstance();
 			if ( isset( $api->type_mapping[$type] ) ) {
 				$mapping = $api->type_mapping[$type];
-				$field_args = isset( $func_args[2] ) ? $func_args[2] : array( );
+				$field_args = isset( $func_args[2] ) ? $func_args[2] : array();
 				$field_args = wp_parse_args( $field_args, $mapping['args'] );
 				return $this->add_field( $mapping['class'], $func_args[0], $func_args[1], $field_args );
 			}
@@ -250,7 +264,7 @@ class Voce_Meta_Group {
 	 * @param array $args
 	 * @return iVoce_Meta_Field
 	 */
-	public function add_field( $type, $id, $label, $args = array( ) ) {
+	public function add_field( $type, $id, $label, $args = array() ) {
 
 		if ( !isset( $this->fields[$id] ) ) {
 
@@ -315,7 +329,7 @@ class Voce_Meta_Group {
 
 interface iVoce_Meta_Field {
 
-	public function __construct( $group, $id, $label, $args = array( ) );
+	public function __construct( $group, $id, $label, $args = array() );
 
 	public function update_field( $post_id );
 
@@ -343,7 +357,7 @@ class Voce_Meta_Field implements iVoce_Meta_Field {
 	 * @param string $label
 	 * @param array $args
 	 */
-	public function __construct( $group, $id, $label, $args = array( ) ) {
+	public function __construct( $group, $id, $label, $args = array() ) {
 		$this->group = $group;
 		$this->label = $label;
 		$this->id = $id;
@@ -353,7 +367,7 @@ class Voce_Meta_Field implements iVoce_Meta_Field {
 			'capability' => $this->group->capability,
 			'default_value' => '',
 			'display_callbacks' => array( 'voce_text_field_display' ),
-			'sanitize_callbacks' => array( ),
+			'sanitize_callbacks' => array(),
 			'description' => ''
 		);
 		$args = wp_parse_args( $args, $defaults );
@@ -411,7 +425,7 @@ class Voce_Meta_Field implements iVoce_Meta_Field {
 	 *
 	 * @return string Returns name for form element.
 	 */
-	public function get_name( ){
+	public function get_name(){
 		return "{$this->group->id}[{$this->id}]";
 	}
 
@@ -420,7 +434,7 @@ class Voce_Meta_Field implements iVoce_Meta_Field {
 	 *
 	 * @return string Returns input id used on the form element
 	 */
-	public function get_input_id( ){
+	public function get_input_id(){
 		return "{$this->group->id}_{$this->id}";
 	}
 
@@ -433,7 +447,7 @@ class Voce_Meta_Field implements iVoce_Meta_Field {
  * @param array $args
  * @return Voce_Meta_Group
  */
-function add_metadata_group( $id, $title, $args = array( ) ) {
+function add_metadata_group( $id, $title, $args = array() ) {
 	return Voce_Meta_API::GetInstance()->add_group( $id, $title, $args );
 }
 
@@ -446,7 +460,7 @@ function add_metadata_group( $id, $title, $args = array( ) ) {
  * @param array $args
  * @return boolean
  */
-function add_metadata_field( $group, $id, $label, $type = 'text', $args = array( ) ) {
+function add_metadata_field( $group, $id, $label, $type = 'text', $args = array() ) {
 	$api = Voce_Meta_API::GetInstance();
 	if ( isset( $api->groups[$group] ) ) {
 		$func = "add_field_{$type}";
@@ -476,7 +490,7 @@ function remove_metadata_field( $group, $id ) {
 function voce_field_label_display( $field ) {
 	if ( property_exists( $field, 'label' ) && ('' != $field->label) ):
 		?>
-		<label for="<?php echo esc_attr( $field->get_input_id( ) ) ?>"><?php echo esc_html( $field->label ); ?>:</label>
+		<label for="<?php echo esc_attr( $field->get_input_id() ) ?>"><?php echo wp_kses( $field->label, Voce_Meta_API::GetInstance()->label_allowed_html ); ?>:</label>
 		<?php
 	endif;
 }
@@ -491,8 +505,8 @@ function voce_textarea_field_display( $field, $current_value, $post_id ) {
 	?>
 	<p>
 		<?php voce_field_label_display( $field ); ?>
-		<textarea class="widefat" id="<?php echo esc_attr( $field->get_input_id( ) ); ?>" name="<?php echo esc_attr( $field->get_name( ) ); ?>"><?php echo esc_attr( $current_value ); ?></textarea>
-		<?php echo !empty( $field->description ) ? ('<br><span class="description">' . esc_html( $field->description ) . '</span>') : ''; ?>
+		<textarea class="widefat" id="<?php echo esc_attr( $field->get_input_id() ); ?>" name="<?php echo esc_attr( $field->get_name() ); ?>"><?php echo esc_attr( $current_value ); ?></textarea>
+		<?php echo !empty( $field->description ) ? ('<br><span class="description">' . wp_kses( $field->description, Voce_Meta_API::GetInstance()->description_allowed_html ) . '</span>') : ''; ?>
 	</p>
 	<?php
 }
@@ -507,8 +521,8 @@ function voce_checkbox_field_display( $field, $current_value, $post_id ) {
 	?>
 	<p>
 		<?php voce_field_label_display( $field ); ?>
-		<input type="checkbox" id="<?php echo esc_attr( $field->get_input_id( ) ); ?>" name="<?php echo esc_attr( $field->get_name( ) ) ?>" <?php checked( $current_value, 'on' ); ?> />
-		<?php echo !empty( $field->description ) ? ('<br><span class="description">' . esc_html( $field->description ) . '</span>') : ''; ?>
+		<input type="checkbox" id="<?php echo esc_attr( $field->get_input_id() ); ?>" name="<?php echo esc_attr( $field->get_name() ) ?>" <?php checked( $current_value, 'on' ); ?> />
+		<?php echo !empty( $field->description ) ? ('<br><span class="description">' . wp_kses( $field->description, Voce_Meta_API::GetInstance()->description_allowed_html ) . '</span>') : ''; ?>
 	</p>
 	<?php
 }
@@ -523,12 +537,12 @@ function voce_dropdown_field_display( $field, $current_value, $post_id ) {
 	?>
 	<p>
 		<?php voce_field_label_display( $field ); ?>
-		<select id="<?php echo esc_attr( $field->get_input_id( ) ); ?>" name="<?php echo esc_attr( $field->get_name( ) ); ?>">
+		<select id="<?php echo esc_attr( $field->get_input_id() ); ?>" name="<?php echo esc_attr( $field->get_name() ); ?>">
 			<?php foreach ($field->args['options'] as $key => $value): ?>
 				<option value="<?php echo esc_attr( $key ); ?>" <?php selected( $current_value, $key ); ?>><?php echo esc_html( $value ); ?></option>
 			<?php endforeach; ?>
 		</select>
-		<?php echo !empty( $field->description ) ? ('<br><span class="description">' . esc_html( $field->description ) . '</span>)') : ''; ?>
+		<?php echo !empty( $field->description ) ? ('<br><span class="description">' . wp_kses( $field->description, Voce_Meta_API::GetInstance()->description_allowed_html ) . '</span>') : ''; ?>
 	</p>
 	<?php
 }
@@ -543,8 +557,8 @@ function voce_text_field_display( $field, $value, $post_id ) {
 	?>
 	<p>
 		<?php voce_field_label_display( $field ); ?>
-		<input class="widefat" type="text" id="<?php echo esc_attr( $field->get_input_id( ) ); ?>" name="<?php echo esc_attr( $field->get_name( ) ); ?>" value="<?php echo esc_attr( $value ); ?>"  />
-		<?php echo !empty( $field->description ) ? ('<br><span class="description">' . esc_html( $field->description ) . '</span>') : ''; ?>
+		<input class="widefat" type="text" id="<?php echo esc_attr( $field->get_input_id() ); ?>" name="<?php echo esc_attr( $field->get_name() ); ?>" value="<?php echo esc_attr( $value ); ?>"  />
+		<?php echo !empty( $field->description ) ? ('<br><span class="description">' . wp_kses( $field->description, Voce_Meta_API::GetInstance()->description_allowed_html ) . '</span>') : ''; ?>
 	</p>
 	<?php
 }
@@ -554,9 +568,9 @@ function voce_wp_editor_field_display($field, $current_value, $post_id) {
 	<div class="voce-post-meta-wp-editor">
 		<?php voce_field_label_display($field);
 			echo '<div class="wp-editor-wrapper">';
-			wp_editor( $current_value, $field->get_name( ), $field->args['wp_editor_args'] );
+			wp_editor( $current_value, $field->get_name(), $field->args['wp_editor_args'] );
 			echo '</div>';
-			echo !empty( $field->description ) ? '<br><span class="description">' . $field->description . '</span>' : '';
+			echo !empty( $field->description ) ? ('<br><span class="description">' . wp_kses( $field->description, Voce_Meta_API::GetInstance()->description_allowed_html ) . '</span>') : '';
 		?>
 	</div>
 	<?php
@@ -570,7 +584,7 @@ function voce_wp_editor_field_display($field, $current_value, $post_id) {
  */
 function voce_hidden_field_display( $field, $value, $post_id ) {
 	?>
-	<input class="hidden" type="hidden" id="<?php echo esc_attr( $field->get_input_id( ) ); ?>" name="<?php echo esc_attr( $field->get_name( ) ); ?>" value="<?php echo esc_attr( $value ); ?>"  />
+	<input class="hidden" type="hidden" id="<?php echo esc_attr( $field->get_input_id() ); ?>" name="<?php echo esc_attr( $field->get_name() ); ?>" value="<?php echo esc_attr( $value ); ?>"  />
 	<?php
 }
 
