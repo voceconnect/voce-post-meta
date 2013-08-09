@@ -42,7 +42,7 @@ add_action('init', function(){
 ```
 
 **1.1**  
-*Adding WP Editor**
+*Adding WP Editor*
 
 **1.0**  
 *Initial version.*
