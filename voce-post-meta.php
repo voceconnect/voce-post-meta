@@ -14,6 +14,8 @@ class Voce_Meta_API {
 	private static $instance;
 	public $groups;
 	public $type_mapping;
+	public $label_allowed_html;
+	public $description_allowed_html;
 
 	/**
 	 *
@@ -81,7 +83,23 @@ class Voce_Meta_API {
 				)
 			)
 		);
+
 		$this->type_mapping = apply_filters( 'meta_type_mapping', $mapping );
+
+		$allowed_html = array(
+			'a' => array(
+				'href' => array(),
+				'title' => array()
+			),
+			'br' => array(),
+			'em' => array(),
+			'strong' => array(),
+			'code' => array(),
+			'pre' => array()
+		);
+
+		$this->label_allowed_html = apply_filters( 'voce_meta_label_allowed_html', $allowed_html );
+		$this->description_allowed_html = apply_filters( 'voce_meta_description_allowed_html', $allowed_html );
 	}
 
 	/**
@@ -212,9 +230,7 @@ class Voce_Meta_Group {
 	 * @param type $post
 	 */
 	public function _display_group( $post ) {
-		if ( $this->description ) {
-			echo '<p>' .  $this->description . '</p>';
-		}
+		echo !empty( $this->description ) ? ('<p class="description">' . wp_kses( $this->description, Voce_Meta_API::GetInstance()->description_allowed_html ) . '</p>') : '';
 		foreach ($this->fields as $field) {
 			$field->display_field( $post->ID );
 		}
@@ -476,7 +492,7 @@ function remove_metadata_field( $group, $id ) {
 function voce_field_label_display( $field ) {
 	if ( property_exists( $field, 'label' ) && ('' != $field->label) ):
 		?>
-		<label for="<?php echo esc_attr( $field->get_input_id() ) ?>"><?php echo $field->label; ?>:</label>
+		<label for="<?php echo esc_attr( $field->get_input_id() ) ?>"><?php echo wp_kses( $field->label, Voce_Meta_API::GetInstance()->label_allowed_html ); ?>:</label>
 		<?php
 	endif;
 }
@@ -492,7 +508,7 @@ function voce_textarea_field_display( $field, $current_value, $post_id ) {
 	<p>
 		<?php voce_field_label_display( $field ); ?>
 		<textarea class="widefat" id="<?php echo esc_attr( $field->get_input_id() ); ?>" name="<?php echo esc_attr( $field->get_name() ); ?>"><?php echo esc_attr( $current_value ); ?></textarea>
-		<?php echo !empty( $field->description ) ? ('<br><span class="description">' . $field->description . '</span>') : ''; ?>
+		<?php echo !empty( $field->description ) ? ('<br><span class="description">' . wp_kses( $field->description, Voce_Meta_API::GetInstance()->description_allowed_html ) . '</span>') : ''; ?>
 	</p>
 	<?php
 }
@@ -508,7 +524,7 @@ function voce_checkbox_field_display( $field, $current_value, $post_id ) {
 	<p>
 		<?php voce_field_label_display( $field ); ?>
 		<input type="checkbox" id="<?php echo esc_attr( $field->get_input_id() ); ?>" name="<?php echo esc_attr( $field->get_name() ) ?>" <?php checked( $current_value, 'on' ); ?> />
-		<?php echo !empty( $field->description ) ? ('<br><span class="description">' . $field->description . '</span>') : ''; ?>
+		<?php echo !empty( $field->description ) ? ('<br><span class="description">' . wp_kses( $field->description, Voce_Meta_API::GetInstance()->description_allowed_html ) . '</span>') : ''; ?>
 	</p>
 	<?php
 }
@@ -528,7 +544,7 @@ function voce_dropdown_field_display( $field, $current_value, $post_id ) {
 				<option value="<?php echo esc_attr( $key ); ?>" <?php selected( $current_value, $key ); ?>><?php echo esc_html( $value ); ?></option>
 			<?php endforeach; ?>
 		</select>
-		<?php echo !empty( $field->description ) ? ('<br><span class="description">' . $field->description . '</span>)') : ''; ?>
+		<?php echo !empty( $field->description ) ? ('<br><span class="description">' . wp_kses( $field->description, Voce_Meta_API::GetInstance()->description_allowed_html ) . '</span>') : ''; ?>
 	</p>
 	<?php
 }
@@ -544,7 +560,7 @@ function voce_text_field_display( $field, $value, $post_id ) {
 	<p>
 		<?php voce_field_label_display( $field ); ?>
 		<input class="widefat" type="text" id="<?php echo esc_attr( $field->get_input_id() ); ?>" name="<?php echo esc_attr( $field->get_name() ); ?>" value="<?php echo esc_attr( $value ); ?>"  />
-		<?php echo !empty( $field->description ) ? ('<br><span class="description">' . $field->description . '</span>') : ''; ?>
+		<?php echo !empty( $field->description ) ? ('<br><span class="description">' . wp_kses( $field->description, Voce_Meta_API::GetInstance()->description_allowed_html ) . '</span>') : ''; ?>
 	</p>
 	<?php
 }
@@ -556,7 +572,7 @@ function voce_wp_editor_field_display($field, $current_value, $post_id) {
 			echo '<div class="wp-editor-wrapper">';
 			wp_editor( $current_value, $field->get_name(), $field->args['wp_editor_args'] );
 			echo '</div>';
-			echo !empty( $field->description ) ? '<br><span class="description">' . $field->description . '</span>' : '';
+			echo !empty( $field->description ) ? ('<br><span class="description">' . wp_kses( $field->description, Voce_Meta_API::GetInstance()->description_allowed_html ) . '</span>') : '';
 		?>
 	</div>
 	<?php
