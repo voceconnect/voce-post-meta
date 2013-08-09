@@ -1,12 +1,10 @@
 <?php
 /*
-  Plugin Name: Voce Meta API
-  Plugin URI: http://plugins.voceconnect.com
-  Description: A brief description of the Plugin.
-  Version: The Plugin's Version Number, e.g.: 1.0
-  Author: Name Of The Plugin Author
-  Author URI: http://URI_Of_The_Plugin_Author
-  License: A "Slug" license name e.g. GPL2
+  Plugin Name: Voce Post Meta
+  Description: Allow easily adding meta fields to post types
+  Version: 1.2
+  Author: prettyboymp, kevinlangleyjr, jeffstieler, markparolisi, banderon
+  License: GPLv2 or later
  */
 
 class Voce_Meta_API {
