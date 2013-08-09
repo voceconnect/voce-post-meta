@@ -1,6 +1,6 @@
 Voce Post Meta
 ===================
-Contributors: prettyboymp, kevinlangleyjr, jeffstieler, markparolisi, banderon
+Contributors: prettyboymp, kevinlangleyjr, jeffstieler, markparolisi, banderon  
 Tags: post, meta  
 Requires at least: 3.5  
 Tested up to: 3.6  
