@@ -72,6 +72,12 @@ class Voce_Meta_API {
 				'display_callbacks' => array( 'voce_checkbox_field_display' )
 			)
 		);
+		$mapping['radio'] = array(
+			'class' => 'Voce_Meta_Field',
+			'args' => array(
+				'display_callbacks' => array( 'voce_radio_field_display' )
+			)
+		);
 		$mapping['wp_editor'] = array(
 			'class' => 'Voce_Meta_Field',
 			'args' => array(
@@ -522,6 +528,24 @@ function voce_checkbox_field_display( $field, $current_value, $post_id ) {
 	<p>
 		<?php voce_field_label_display( $field ); ?>
 		<input type="checkbox" id="<?php echo esc_attr( $field->get_input_id() ); ?>" name="<?php echo esc_attr( $field->get_name() ) ?>" <?php checked( $current_value, 'on' ); ?> />
+		<?php echo !empty( $field->description ) ? ('<br><span class="description">' . wp_kses( $field->description, Voce_Meta_API::GetInstance()->description_allowed_html ) . '</span>') : ''; ?>
+	</p>
+	<?php
+}
+
+/**
+ * @method voce_radio_field_display
+ * @param string $field
+ * @param type $current_value
+ * @param integer $post_id
+ */
+function voce_radio_field_display( $field, $current_value, $post_id ) {
+	?>
+	<p>
+		<?php voce_field_label_display( $field ); ?>
+		<?php foreach ($field->args['options'] as $key => $value): ?>
+			<div class="voce-meta-radio"><input type="radio" id="<?php echo esc_attr( $field->get_input_id() . '_' . $key ); ?>" name="<?php echo esc_attr( $field->get_name() ) ?>" value="<?php echo esc_attr( $key ); ?>" <?php checked( $current_value, $key ); ?> /><?php echo wp_kses( $value, Voce_Meta_API::GetInstance()->label_allowed_html ); ?></div>
+		<?php endforeach; ?>
 		<?php echo !empty( $field->description ) ? ('<br><span class="description">' . wp_kses( $field->description, Voce_Meta_API::GetInstance()->description_allowed_html ) . '</span>') : ''; ?>
 	</p>
 	<?php
