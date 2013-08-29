@@ -19,7 +19,7 @@ Create a group (metabox), then add fields to it.
 ### As theme or plugin dependency:
 > After dropping the plugin into the containing theme or plugin, add the following:
 ```php
-if( ! class_exists( 'Voce_Post_Meta' ) ) {
+if( ! class_exists( 'Voce_Meta_API' ) ) {
 	require_once( $path_to_voce_post_meta . '/voce-post-meta.php' );
 }
 ```
