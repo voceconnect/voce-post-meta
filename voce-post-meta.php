@@ -404,7 +404,7 @@ class Voce_Meta_Field implements iVoce_Meta_Field {
 			if ( is_callable( $callback ) )
 				$new_value = call_user_func( $callback, $this, $old_value, $new_value, $post_id );
 		}
-		update_post_meta( $post_id, "{$this->group->id}_{$this->id}", $new_value );
+		update_post_meta( $post_id, apply_filters( "voce_get_meta_key", "{$this->group->id}_{$this->id}" ), $new_value );
 	}
 
 	/**
