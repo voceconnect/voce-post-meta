@@ -1,4 +1,5 @@
 <?php
+if ( !class_exists('Voce_Meta_API') ) {
 /*
   Plugin Name: Voce Post Meta
   Description: Allow easily adding meta fields to post types
@@ -625,4 +626,7 @@ function voce_numeric_value( $field, $old, $new, $post_id ) {
 		return $new;
 	}
 	return 0;
+}
+
+
 }
