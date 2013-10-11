@@ -1,0 +1,33 @@
+{
+    "name": "voceconnect/voce-post-meta",
+    "description": "Easily create post metaboxes and add fields",
+    "license": "GPLv2+",
+    "authors": [
+        {
+            "name": "Michael Pretty",
+            "email": "mpretty@voceconnect.com"
+        },
+        {
+            "name": "Kevin Langley Jr",
+            "email": "klangley@voceconnect.com"
+        },
+        {
+            "name": "Jeff Stieler",
+            "email": "jeff@voceconnect.com"
+        },
+        {
+            "name": "Mark Parolisi",
+            "email": "mark@voceconnect.com"
+        },
+        {
+            "name": "Gary Smirny",
+            "email": "gary@voceconnect.com"
+        }
+    ],
+    "minimum-stability": "stable",
+    "require": {
+    },
+    "autoload": {
+        "files": ["voce-post-meta.php"]
+    }
+}
