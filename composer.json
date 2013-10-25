@@ -1,6 +1,7 @@
 {
     "name": "voceconnect/voce-post-meta",
     "description": "Easily create post metaboxes and add fields",
+    "type": "wordpress-plugin",
     "license": "GPLv2+",
     "authors": [
         {
