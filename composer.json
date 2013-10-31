@@ -1,6 +1,7 @@
 {
     "name": "voceconnect/voce-post-meta",
     "description": "Easily create post metaboxes and add fields",
+    "keywords": ["wordpress", "post meta"],
     "license": "GPLv2+",
     "authors": [
         {
@@ -24,7 +25,7 @@
             "email": "gary@voceconnect.com"
         }
     ],
-    "minimum-stability": "stable",
+    "type": "library",
     "autoload": {
         "files": ["voce-post-meta.php"]
     }
