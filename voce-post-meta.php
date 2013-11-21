@@ -628,5 +628,21 @@ function voce_numeric_value( $field, $old, $new, $post_id ) {
 	return 0;
 }
 
+/**
+ * @method vpm_sanitize_dropdown
+ * @param string $field
+ * @param type $old
+ * @param type $new
+ * @param integer $post_id
+ * @return mixed
+ */
+function vpm_sanitize_dropdown( $field, $old, $new, $post_id ) {
+	if( isset( $field->args['options'] ) && !empty( $field->args['options'] ) ){
+		$value = sanitize_text_field( $new );
+		if( in_array( $value, array_keys( $field->args['options'] ) ) )
+			return $value;
+	}
+	return false;
+}
 
 }
