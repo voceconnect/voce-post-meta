@@ -4,7 +4,7 @@ Contributors: prettyboymp, kevinlangleyjr, jeffstieler, markparolisi, banderon
 Tags: post, meta  
 Requires at least: 3.5  
 Tested up to: 3.6  
-Stable tag: 1.3  
+Stable tag: 1.4  
 License: GPLv2 or later  
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -41,7 +41,9 @@ add_action('init', function(){
 });
 ?>
 ```
-  
+**1.4**  
+*Adding sanitization function for dropdown meta fields*
+
 **1.3**  
 *Adding radio buttons as an available field*
 
