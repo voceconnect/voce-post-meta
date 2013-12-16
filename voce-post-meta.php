@@ -477,6 +477,19 @@ function add_metadata_field( $group, $id, $label, $type = 'text', $args = array(
 }
 
 /**
+ * @method get_vpm_value
+ * @param integer $post_id
+ * @param string $group
+ * @param string $field
+ */
+function get_vpm_value( $post_id = false, $group, $field ){
+	if( !$post_id )
+		$post_id = get_the_ID();
+
+	return Voce_Meta_API::GetInstance()->get_meta_value( $post_id, $group, $field );
+}
+
+/**
  * @method remove_metadata_field
  * @param string $group
  * @param integer $id
