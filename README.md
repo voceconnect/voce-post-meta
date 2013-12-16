@@ -4,7 +4,7 @@ Contributors: prettyboymp, kevinlangleyjr, jeffstieler, markparolisi, banderon
 Tags: post, meta  
 Requires at least: 3.5  
 Tested up to: 3.6  
-Stable tag: 1.4  
+Stable tag: 1.4.1  
 License: GPLv2 or later  
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -41,6 +41,10 @@ add_action('init', function(){
 });
 ?>
 ```
+
+**1.4.1**  
+*Adding get_vpm_value() helper function to get post meta value*
+
 **1.4**  
 *Adding sanitization function for dropdown meta fields*
 
