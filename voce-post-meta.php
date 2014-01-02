@@ -478,11 +478,11 @@ function add_metadata_field( $group, $id, $label, $type = 'text', $args = array(
 
 /**
  * @method get_vpm_value
- * @param integer $post_id
  * @param string $group
  * @param string $field
+ * @param integer $post_id
  */
-function get_vpm_value( $post_id = false, $group, $field ){
+function get_vpm_value( $group, $field, $post_id = false ){
 	if( !$post_id )
 		$post_id = get_the_ID();
 
