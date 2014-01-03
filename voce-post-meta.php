@@ -658,4 +658,16 @@ function vpm_sanitize_dropdown( $field, $old, $new, $post_id ) {
 	return false;
 }
 
+/**
+ * @method vpm_sanitize_url
+ * @param string $field
+ * @param type $old
+ * @param type $new
+ * @param integer $post_id
+ * @return mixed
+ */
+function vpm_sanitize_url( $field, $old, $new, $post_id ) {
+	return esc_url_raw( sanitize_text_field( $new ) );
+}
+
 }
