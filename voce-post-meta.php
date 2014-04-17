@@ -406,7 +406,12 @@ class Voce_Meta_Field implements iVoce_Meta_Field {
 	 */
 	public function update_field( $post_id ) {
 		$old_value = $this->get_value( $post_id );
-		$new_value = isset( $_POST[$this->group->id][$this->id] ) ? $_POST[$this->group->id][$this->id] : '';
+		$new_value = '';
+		if ( isset( $_POST[ $this->group->id ][ $this->id ] ) ) {
+			$new_value = $_POST[ $this->group->id ][ $this->id ];
+		} elseif ( isset( $_POST[ $this->group->id . '_' . $this->id ] ) ) {
+			$new_value = $_POST[ $this->group->id . '_' . $this->id ];
+		} 
 		foreach ($this->sanitize_callbacks as $callback) {
 			if ( is_callable( $callback ) )
 				$new_value = call_user_func( $callback, $this, $old_value, $new_value, $post_id );
@@ -606,7 +611,7 @@ function voce_wp_editor_field_display($field, $current_value, $post_id) {
 	<div class="voce-post-meta-wp-editor">
 		<?php voce_field_label_display($field);
 			echo '<div class="wp-editor-wrapper">';
-			wp_editor( $current_value, $field->get_name(), $field->args['wp_editor_args'] );
+			wp_editor( $current_value, $field->get_input_id(), $field->args['wp_editor_args'] );
 			echo '</div>';
 			echo !empty( $field->description ) ? ('<br><span class="description">' . wp_kses( $field->description, Voce_Meta_API::GetInstance()->description_allowed_html ) . '</span>') : '';
 		?>
