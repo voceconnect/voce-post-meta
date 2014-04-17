@@ -410,6 +410,7 @@ class Voce_Meta_Field implements iVoce_Meta_Field {
 		if ( isset( $_POST[ $this->group->id ][ $this->id ] ) ) {
 			$new_value = $_POST[ $this->group->id ][ $this->id ];
 		} elseif ( isset( $_POST[ $this->group->id . '_' . $this->id ] ) ) {
+			// see voce_wp_editor_field_display function, this is added to check for any instances of the wp_editor calls which were changed to use the get_input_id method instead of the get_name method because WP3.9 deprecated the usage of brackets in the name value for the wp_editor
 			$new_value = $_POST[ $this->group->id . '_' . $this->id ];
 		} 
 		foreach ($this->sanitize_callbacks as $callback) {
@@ -611,6 +612,7 @@ function voce_wp_editor_field_display($field, $current_value, $post_id) {
 	<div class="voce-post-meta-wp-editor">
 		<?php voce_field_label_display($field);
 			echo '<div class="wp-editor-wrapper">';
+			// use the get_input_id method as the $editor_id (second argument in wp_editor()) because WP3.9 deprecated the usage of brackets in the name value for the wp_editor
 			wp_editor( $current_value, $field->get_input_id(), $field->args['wp_editor_args'] );
 			echo '</div>';
 			echo !empty( $field->description ) ? ('<br><span class="description">' . wp_kses( $field->description, Voce_Meta_API::GetInstance()->description_allowed_html ) . '</span>') : '';
