@@ -3,8 +3,8 @@ Voce Post Meta
 Contributors: prettyboymp, kevinlangleyjr, jeffstieler, markparolisi, banderon  
 Tags: post, meta  
 Requires at least: 3.5  
-Tested up to: 3.6  
-Stable tag: 1.4.1  
+Tested up to: 3.9  
+Stable tag: 1.5  
 License: GPLv2 or later  
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -41,6 +41,9 @@ add_action('init', function(){
 });
 ?>
 ```
+
+**1.5**  
+*Fixing wp_editor issue with WP 3.9*
 
 **1.4.1**  
 *Adding get_vpm_value() helper function to get post meta value*
