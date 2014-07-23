@@ -83,7 +83,7 @@ class Voce_Meta_API {
 			'class' => 'Voce_Meta_Field',
 			'args' => array(
 				'display_callbacks' => array( 'voce_wp_editor_field_display' ),
-				'sanitize_callbacks' => array( 'voce_sanitize_wp_editor' )
+				'sanitize_callbacks' => array( 'voce_sanitize_wp_editor' ),
 				'wp_editor_args' => array(
 					'textarea_rows' => 10
 				)
