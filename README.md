@@ -45,6 +45,7 @@ add_action('init', function(){
 ## Standard Field Options
 These are the args that all default fields accept, and that any extended fields are expected to handle.  
 Arg | Default | Type | Description  
+--- | --- | ---  
 `description` | none | String | A short description of the expected value displayed with the field.  
 `capability` | `edit_posts` | String | User permission level that must be met to edit the field.  
 `default_value` | none | Mixed | The value to be shown and used when not set.  
