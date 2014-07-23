@@ -82,7 +82,8 @@ class Voce_Meta_API {
 		$mapping['wp_editor'] = array(
 			'class' => 'Voce_Meta_Field',
 			'args' => array(
-				'display_callbacks' => array('voce_wp_editor_field_display'),
+				'display_callbacks' => array( 'voce_wp_editor_field_display' ),
+				'sanitize_callbacks' => array( 'voce_sanitize_wp_editor' )
 				'wp_editor_args' => array(
 					'textarea_rows' => 10
 				)
@@ -663,6 +664,10 @@ function vpm_sanitize_dropdown( $field, $old, $new, $post_id ) {
 			return $value;
 	}
 	return false;
+}
+
+function voce_sanitize_wp_editor( $field, $old_value, $new_value, $post_id ) {
+	return wp_kses( $new_value, wp_kses_allowed_html( 'post' ) );
 }
 
 }
