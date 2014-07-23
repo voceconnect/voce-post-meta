@@ -63,19 +63,19 @@ array(
 
 By default, Voce Post Meta comes with support for these input types:
 
-### Text Inputs
-* `text` - A one line text input field
+#### Text Inputs
+* `text` - A one line text input field.
 * `textarea` - A basic multiline text field.  
 * `numberic` - The same as text field but sanitizes as a number on save.  
 * `wp_editor` - Uses the full WordPress post content editor, for more advanced editing scenarios.  
 
-### Selection
+#### Selection
 * `dropdown` - A dropdown select field.  
 * `radio` - Radio button selection field.  
 
 Both selection fields expect an `options` argument passed into the options array. The options should be an array of `$value => $label` pairs.
 
-### Misc
+#### Misc
 * `hidden` A hidden input field for saving meta outside of user control. 
 * `checkbox` - Checkbox input field for on/off toggling.  
 
