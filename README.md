@@ -42,6 +42,37 @@ add_action('init', function(){
 ?>
 ```
 
+## Standard Field Options
+These are the args that all default fields accept, and that any extended fields are expected to handle.  
+Arg | Default | Type | Description  
+`description` | none | String | A short description of the expected value displayed with the field.  
+`capability` | `edit_posts` | String | User permission level that must be met to edit the field.  
+`default_value` | none | Mixed | The value to be shown and used when not set.  
+`display_callbacks` | varies | Array | An array of valid callable functions to render the field display. Functions should expect 3 arguments: `$field, $current_value, $post_id`  
+`sanitize_callbacks` | varies | Array | An array of callable functions to sanitize the field value on save. Functions should expect 4 arguments: `$field, $old_value, $new_value, $post_id`  
+
+
+## Input Types
+
+By default, Voce Post Meta comes with support for these input types:
+
+### Text Inputs
+* `text` - A one line text input field
+* `textarea` - A basic multiline text field.  
+* `numberic` - The same as text field but sanitizes as a number on save.  
+* `wp_editor` - Uses the full WordPress post content editor, for more advanced editing scenarios.  
+
+### Selection
+* `dropdown` - A dropdown select field.  
+* `radio` - Radio button selection field.  
+
+Both selection fields expect an `options` argument passed into the options array. The options should be an array of `$value => $label` pairs.
+
+### Misc
+* `hidden` A hidden input field for saving meta outside of user control. 
+* `checkbox` - Checkbox input field for on/off toggling.  
+
+
 **1.5**  
 *Fixing wp_editor issue with WP 3.9*
 
