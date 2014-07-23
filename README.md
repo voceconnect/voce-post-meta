@@ -47,11 +47,11 @@ These are the args that all default fields accept, and that any extended fields 
 
 Arg | Default | Type | Description
 --- | --- | ---
-`description` | none | String | A short description of the expected value displayed with the field.
-`capability` | `edit_posts` | String | User permission level that must be met to edit the field.
-`default_value` | none | Mixed | The value to be shown and used when not set.
-`display_callbacks` | varies | Array | An array of valid callable functions to render the field display. Functions should expect 3 arguments: `$field, $current_value, $post_id`
-`sanitize_callbacks` | varies | Array | An array of callable functions to sanitize the field value on save. Functions should expect 4 arguments: `$field, $old_value, $new_value, $post_id`
+| `description` | none | String | A short description of the expected value displayed with the field.
+| `capability` | `edit_posts` | String | User permission level that must be met to edit the field.
+| `default_value` | none | Mixed | The value to be shown and used when not set.
+| `display_callbacks` | varies | Array | An array of valid callable functions to render the field display. Functions should expect 3 arguments: `$field, $current_value, $post_id`
+| `sanitize_callbacks` | varies | Array | An array of callable functions to sanitize the field value on save. Functions should expect 4 arguments: `$field, $old_value, $new_value, $post_id`
 
 
 ## Input Types
