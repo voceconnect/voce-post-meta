@@ -80,6 +80,8 @@ Both selection fields expect an `options` argument passed into the options array
 * `checkbox` - Checkbox input field for on/off toggling.  
 
 
+## Version History
+
 **1.5**  
 *Fixing wp_editor issue with WP 3.9*
 
