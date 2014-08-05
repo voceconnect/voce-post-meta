@@ -81,7 +81,7 @@ array(
 ```
 
 ## Version History
-**1.5.1**
+**1.5.1**  
 *Sanitizing wp_editor content with wp_kses*
 
 **1.5**  
