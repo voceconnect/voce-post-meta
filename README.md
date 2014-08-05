@@ -41,8 +41,6 @@ add_action('init', function(){
 });
 ?>
 ```
-**1.5.1**
-*Sanitizing wp_editor content with wp_kses*
 
 ## Input Types
 
@@ -83,6 +81,8 @@ array(
 ```
 
 ## Version History
+**1.5.1**
+*Sanitizing wp_editor content with wp_kses*
 
 **1.5**  
 *Fixing wp_editor issue with WP 3.9*
