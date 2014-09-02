@@ -4,7 +4,7 @@ Contributors: prettyboymp, kevinlangleyjr, jeffstieler, markparolisi, banderon
 Tags: post, meta  
 Requires at least: 3.5  
 Tested up to: 3.9  
-Stable tag: 1.5.1  
+Stable tag: 1.6.0  
 License: GPLv2 or later  
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -81,6 +81,9 @@ array(
 ```
 
 ## Version History
+**1.6.0**
+Saving an null, false, or empty string value will now delete the meta value in the database
+
 **1.5.1**  
 *Sanitizing wp_editor content with wp_kses*
 
