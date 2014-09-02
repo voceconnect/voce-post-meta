@@ -395,7 +395,7 @@ class Voce_Meta_Field implements iVoce_Meta_Field {
 	 */
 	public function get_value( $post_id ) {
 		$value = get_post_meta( $post_id, "{$this->group->id}_{$this->id}", true );
-		if ( empty( $value ) && $this->default_value ) {
+		if ( ('' === $value) && $this->default_value ) {
 			$value = $this->default_value;
 		}
 		return $value;
