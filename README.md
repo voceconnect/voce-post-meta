@@ -4,7 +4,7 @@ Contributors: prettyboymp, kevinlangleyjr, jeffstieler, markparolisi, banderon
 Tags: post, meta  
 Requires at least: 3.5  
 Tested up to: 3.9  
-Stable tag: 1.6.0  
+Stable tag: 1.7.0  
 License: GPLv2 or later  
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -55,12 +55,17 @@ By default, Voce Post Meta comes with support for these input types:
 #### Selection
 * `dropdown` - A dropdown select field.  
 * `radio` - Radio button selection field.  
+* `checkbox` - Checkbox input field for on/off toggling.  
 
-Both selection fields expect an `options` argument passed into the options array. The options should be an array of `$value => $label` pairs.
+The `dropdown` and `radio` fields expect an `options` argument passed into the options array. The options should be an array of `$value => $label` pairs.
+
+This field is optional for the `checkbox` field; utilizing it will allow for multiple checkboxes under the same field and will cause the value to save as an array.
+
+Additionally, for `radio` fields and `checkbox` fields that use the `options` argument, an `item_container` argument is available to specify the HTML tag used to wrap the individual items. The only currently allowed values are `div` (default) and `span`.
 
 #### Misc
 * `hidden` A hidden input field for saving meta outside of user control. 
-* `checkbox` - Checkbox input field for on/off toggling.  
+
 
 
 ### Standard Field Options
@@ -81,6 +86,9 @@ array(
 ```
 
 ## Version History
+**1.7.0**
+Added ability to have multiple checkboxes for the checkbox field. Allow specifying whether to use a div or span to wrap individual checkboxes and radios. Add an id to the top element of each field to allow for easier styling.
+
 **1.6.0**
 Saving an null, false, or empty string value will now delete the meta value in the database
 

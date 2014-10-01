@@ -3,7 +3,7 @@ if ( !class_exists('Voce_Meta_API') ) {
 /*
   Plugin Name: Voce Post Meta
   Description: Allow easily adding meta fields to post types
-  Version: 1.6.0
+  Version: 1.7.0
   Author: prettyboymp, kevinlangleyjr, jeffstieler, markparolisi, banderon
   License: GPLv2 or later
  */
@@ -534,7 +534,7 @@ function voce_field_label_display( $field ) {
  */
 function voce_textarea_field_display( $field, $current_value, $post_id ) {
 	?>
-	<p>
+	<p id="<?php echo esc_attr( 'vpm_field-' . $field->get_input_id() ); ?>">
 		<?php voce_field_label_display( $field ); ?>
 		<textarea class="widefat" id="<?php echo esc_attr( $field->get_input_id() ); ?>" name="<?php echo esc_attr( $field->get_name() ); ?>"><?php echo esc_attr( $current_value ); ?></textarea>
 		<?php echo !empty( $field->description ) ? ('<br><span class="description">' . wp_kses( $field->description, Voce_Meta_API::GetInstance()->description_allowed_html ) . '</span>') : ''; ?>
@@ -550,9 +550,16 @@ function voce_textarea_field_display( $field, $current_value, $post_id ) {
  */
 function voce_checkbox_field_display( $field, $current_value, $post_id ) {
 	?>
-	<p>
+	<p id="<?php echo esc_attr( 'vpm_field-' . $field->get_input_id() ); ?>">
 		<?php voce_field_label_display( $field ); ?>
-		<input type="checkbox" id="<?php echo esc_attr( $field->get_input_id() ); ?>" name="<?php echo esc_attr( $field->get_name() ) ?>" <?php checked( $current_value, 'on' ); ?> />
+		<?php if ( empty( $field->args['options'] ) ): ?>
+			<input type="checkbox" id="<?php echo esc_attr( $field->get_input_id() ); ?>" name="<?php echo esc_attr( $field->get_name() ) ?>" <?php checked( $current_value, 'on' ); ?> />
+		<?php else: ?>
+			<?php $item_container = ! empty( $field->args['item_container'] ) && in_array( $field->args['item_container'], array( 'div', 'span' ) ) ? $field->args['item_container'] : 'div'; ?>
+			<?php foreach ($field->args['options'] as $key => $value): ?>
+				<<?php echo $item_container; ?> class="voce-meta-checkbox"><input type="checkbox" id="<?php echo esc_attr( $field->get_input_id() . '_' . $key ); ?>" name="<?php echo esc_attr( $field->get_name() . '[' . $key . ']') ?>" <?php checked( array_key_exists( $key, (array)$current_value ), true ); ?> /><?php echo wp_kses( $value, Voce_Meta_API::GetInstance()->label_allowed_html ); ?></<?php echo $item_container; ?>>
+			<?php endforeach; ?>
+		<?php endif; ?>
 		<?php echo !empty( $field->description ) ? ('<br><span class="description">' . wp_kses( $field->description, Voce_Meta_API::GetInstance()->description_allowed_html ) . '</span>') : ''; ?>
 	</p>
 	<?php
@@ -565,11 +572,12 @@ function voce_checkbox_field_display( $field, $current_value, $post_id ) {
  * @param integer $post_id
  */
 function voce_radio_field_display( $field, $current_value, $post_id ) {
+	$item_container = ! empty( $field->args['item_container'] ) && in_array( $field->args['item_container'], array( 'div', 'span' ) ) ? $field->args['item_container'] : 'div';
 	?>
-	<p>
+	<p id="<?php echo esc_attr( 'vpm_field-' . $field->get_input_id() ); ?>">
 		<?php voce_field_label_display( $field ); ?>
 		<?php foreach ($field->args['options'] as $key => $value): ?>
-			<div class="voce-meta-radio"><input type="radio" id="<?php echo esc_attr( $field->get_input_id() . '_' . $key ); ?>" name="<?php echo esc_attr( $field->get_name() ) ?>" value="<?php echo esc_attr( $key ); ?>" <?php checked( $current_value, $key ); ?> /><?php echo wp_kses( $value, Voce_Meta_API::GetInstance()->label_allowed_html ); ?></div>
+			<<?php echo $item_container; ?> class="voce-meta-radio"><input type="radio" id="<?php echo esc_attr( $field->get_input_id() . '_' . $key ); ?>" name="<?php echo esc_attr( $field->get_name() ) ?>" value="<?php echo esc_attr( $key ); ?>" <?php checked( $current_value, $key ); ?> /><?php echo wp_kses( $value, Voce_Meta_API::GetInstance()->label_allowed_html ); ?></<?php echo $item_container; ?>>
 		<?php endforeach; ?>
 		<?php echo !empty( $field->description ) ? ('<br><span class="description">' . wp_kses( $field->description, Voce_Meta_API::GetInstance()->description_allowed_html ) . '</span>') : ''; ?>
 	</p>
@@ -584,7 +592,7 @@ function voce_radio_field_display( $field, $current_value, $post_id ) {
  */
 function voce_dropdown_field_display( $field, $current_value, $post_id ) {
 	?>
-	<p>
+	<p id="<?php echo esc_attr( 'vpm_field-' . $field->get_input_id() ); ?>">
 		<?php voce_field_label_display( $field ); ?>
 		<select id="<?php echo esc_attr( $field->get_input_id() ); ?>" name="<?php echo esc_attr( $field->get_name() ); ?>">
 			<?php foreach ($field->args['options'] as $key => $value): ?>
@@ -604,7 +612,7 @@ function voce_dropdown_field_display( $field, $current_value, $post_id ) {
  */
 function voce_text_field_display( $field, $value, $post_id ) {
 	?>
-	<p>
+	<p id="<?php echo esc_attr( 'vpm_field-' . $field->get_input_id() ); ?>">
 		<?php voce_field_label_display( $field ); ?>
 		<input class="widefat" type="text" id="<?php echo esc_attr( $field->get_input_id() ); ?>" name="<?php echo esc_attr( $field->get_name() ); ?>" value="<?php echo esc_attr( $value ); ?>"  />
 		<?php echo !empty( $field->description ) ? ('<br><span class="description">' . wp_kses( $field->description, Voce_Meta_API::GetInstance()->description_allowed_html ) . '</span>') : ''; ?>
@@ -614,7 +622,7 @@ function voce_text_field_display( $field, $value, $post_id ) {
 
 function voce_wp_editor_field_display($field, $current_value, $post_id) {
 	?>
-	<div class="voce-post-meta-wp-editor">
+	<div id="<?php echo esc_attr( 'vpm_field-' . $field->get_input_id() ); ?>" class="voce-post-meta-wp-editor">
 		<?php voce_field_label_display($field);
 			echo '<div class="wp-editor-wrapper">';
 			// use the get_input_id method as the $editor_id (second argument in wp_editor()) because WP3.9 deprecated the usage of brackets in the name value for the wp_editor
