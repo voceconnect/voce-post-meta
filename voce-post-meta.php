@@ -49,14 +49,12 @@ class Voce_Meta_API {
 			'class' => 'Voce_Meta_Field',
 			'args'  => array(
 				'display_callbacks' => array( array( 'Voce_Meta_Field', 'display_text' ) ),
-				'clone_js_callback' => array( 'Voce_Meta_Field', 'render_clone_field_js' ),
 			),
 		);
 		$mapping['textarea'] = array(
 			'class' => 'Voce_Meta_Field',
 			'args'  => array(
 				'display_callbacks' => array( array( 'Voce_Meta_Field', 'display_textarea' ) ),
-				'clone_js_callback' => array( 'Voce_Meta_Field', 'render_clone_field_js' ),
 			),
 		);
 		$mapping['hidden'] = array(
@@ -70,7 +68,6 @@ class Voce_Meta_API {
 			'args'  => array(
 				'display_callbacks'  => array( array( 'Voce_Meta_Field', 'display_text' ) ),
 				'sanitize_callbacks' => array( array( 'Voce_Meta_Field', 'sanitize_numeric' ) ),
-				'clone_js_callback' => array( 'Voce_Meta_Field', 'render_clone_field_js' ),
 			),
 		);
 		$mapping['dropdown'] = array(
@@ -78,7 +75,6 @@ class Voce_Meta_API {
 			'args'  => array(
 				'display_callbacks'  => array( array( 'Voce_Meta_Field', 'display_dropdown' ) ),
 				'sanitize_callbacks' => array( array( 'Voce_Meta_Field', 'sanitize_dropdown' ) ),
-				'clone_js_callback' => array( 'Voce_Meta_Field', 'render_clone_field_js' ),
 			),
 		);
 		$mapping['checkbox'] = array(
@@ -480,7 +476,7 @@ class Voce_Meta_Field implements iVoce_Meta_Field {
 			'delete_button_callback'      => array( __CLASS__, 'render_multiple_delete' ),
 			'clone_template_callback'     => '',
 			'clone_js'                    => 'vpm_clone_field',
-			'clone_js_callback'           => '',
+			'clone_js_callback'           => array( __CLASS__, 'render_clone_field_js' ),
 			'sortable'                    => false,
 		);
 		$args = wp_parse_args( $args, $defaults );
@@ -494,7 +490,7 @@ class Voce_Meta_Field implements iVoce_Meta_Field {
 		$this->multiple = ( intval( $args['multiple'] ) >= 2 ? intval( $args['multiple'] ) : (bool)$args['multiple'] );
 		$this->add_button_callback = $args['add_button_callback'];
 		$this->delete_button_callback = $args['delete_button_callback'];
-		$this->clone_template_callback = $args['clone_template_callback'];
+		$this->clone_template_callback = ( is_callable( $args['clone_template_callback'] ) ? $args['clone_template_callback'] : reset( $this->display_callbacks ) );
 		$this->clone_js = $args['clone_js'];
 		$this->clone_js_callback = $args['clone_js_callback'];
 		$this->sortable = (bool)$args['sortable'];
@@ -557,7 +553,9 @@ class Voce_Meta_Field implements iVoce_Meta_Field {
 
 		delete_post_meta( $post_id, $field_id );
 		foreach ( $new_value as $value ) {
-			add_post_meta( $post_id, $field_id, $value );
+			if ( $value || $value != $this->default_value ) {
+				add_post_meta( $post_id, $field_id, $value );
+			}
 		}
 	}
 
@@ -821,6 +819,67 @@ class Voce_Meta_Field implements iVoce_Meta_Field {
 class Voce_Meta_Field_Checkbox extends Voce_Meta_Field {
 
 	/**
+	 * @constructor
+	 *
+	 * @param string $type
+	 * @param string $group
+	 * @param integer $id
+	 * @param string $label
+	 * @param array $args
+	 */
+	public function __construct( $type, $group, $id, $label, $args = array() ) {
+		parent::__construct( $type, $group, $id, $label, $args );
+
+		$this->multiple = false;
+	}
+
+	/**
+	 * Update post meta
+	 *
+	 * @param type $post_id
+	 */
+	public function update_field( $post_id ) {
+		$field_id = $this->get_input_id();
+		$old_values = $this->get_value( $post_id );
+		$new_values = array();
+
+		if ( isset( $_POST[ $this->group->id ][ $this->id ] ) ) {
+			$new_values = $_POST[ $this->group->id ][ $this->id ];
+		}
+
+		foreach ( $this->sanitize_callbacks as $callback ) {
+			if ( is_callable( $callback ) ) {
+				foreach ( $new_values as $k => $value ) {
+					$new_values[ $k ] = call_user_func( $callback, $this, @$old_values[ $k ], $value, $post_id );
+				}
+			}
+		}
+
+		delete_post_meta( $post_id, $field_id );
+		if ( empty( $new_values ) ) {
+			return;
+		}
+		foreach ( $new_values as $value ) {
+			add_post_meta( $post_id, $field_id, $value );
+		}
+
+	}
+
+	/**
+	 * Output HTML from application callback or user defined callback
+	 *
+	 * @param type $post_id
+	 */
+	public function display_field( $post_id ) {
+		$values = $this->get_value( $post_id );
+		foreach ( $this->display_callbacks as $callback ) {
+			if ( is_callable( $callback ) ) {
+				call_user_func( $callback, $this, $values, $post_id );
+			}
+		}
+	}
+
+	/**
 	 * @method render_clone_checkbox_js
 	 *
 	 * @param iVoce_Meta_Field $field
@@ -849,8 +908,10 @@ class Voce_Meta_Field_Checkbox extends Voce_Meta_Field {
 						if ($el.attr('type') == 'checkbox') {
 							jQuery.each(['name','id'], function(k, field) {
 								index_position = $el.attr(field).indexOf('VPM_CLONE_INDEX');
-								new_val = [$el.attr(field).slice(0, index_position), multiple_index, $el.attr(field).slice(index_position + 15)].join('');
-								$el.attr(field, new_val);
+								if ( index_position > 0 ) {
+									new_val = [$el.attr(field).slice(0, index_position), multiple_index, $el.attr(field).slice(index_position + 15)].join('');
+									$el.attr(field, new_val);
+								}
 							});
 						}
 						jQuery.each($el.get(0).attributes, function() {
@@ -886,16 +947,19 @@ class Voce_Meta_Field_Checkbox extends Voce_Meta_Field {
 	 * @param integer $post_id
 	 */
 	public static function display_checkbox( $field, $current_value, $post_id ) {
+		$val = ( ! empty( $field->args['value'] ) ? $field->args['value'] : 'on' );
 		$item_format = ! empty( $field->args['item_format'] ) && in_array( $field->args['item_format'], array( 'inline', 'block' ) ) ? $field->args['item_format'] : 'block';
 		?>
 		<p id="<?php echo esc_attr( $field->get_wrapper_id( $field->index ) ); ?>" class="<?php echo esc_attr( $field->get_wrapper_id() ); ?> " data-multiple_index="<?php echo esc_attr( $field->index ); ?>">
 			<?php echo self::get_label( $field ); ?>
 			<?php if ( empty( $field->args['options'] ) ): ?>
-				<input type="checkbox" id="<?php echo esc_attr( $field->get_input_id( $field->index ) ); ?>" name="<?php echo esc_attr( $field->get_name() ) ?>" <?php checked( $current_value, 'on' ); ?> />
+				<?php $checked = checked( in_array( $val, $current_value ), true, false ); ?>
+				<input type="checkbox" id="<?php echo esc_attr( $field->get_input_id( $field->index ) ); ?>" name="<?php echo esc_attr( $field->get_name() ) ?>" value="<?php echo esc_attr( $val ) ?>" <?php echo $checked; ?> />
 			<?php else: ?>
 				<?php foreach ($field->args['options'] as $key => $value): ?>
+					<?php $checked = checked( in_array( $key, $current_value ) , true, false ); ?>
 					<label style="display:<?php echo $item_format; ?>" class="voce-meta-checkbox">
-						<input type="checkbox" id="<?php echo esc_attr( $field->get_input_id( $field->index ) . '_' . $key ); ?>" name="<?php echo esc_attr( $field->get_name( $field->index ) . '[' . $key . ']') ?>" <?php checked( array_key_exists( $key, (array)$current_value ), true ); ?> /><?php echo wp_kses( $value, Voce_Meta_API::GetInstance()->label_allowed_html ); ?>
+						<input type="checkbox" id="<?php echo esc_attr( $field->get_input_id( $field->index ) . '_' . $key ); ?>" name="<?php echo esc_attr( $field->get_name( $field->index ) ); ?>" value="<?php echo esc_attr( $key ); ?>" <?php echo $checked; ?> /><?php echo wp_kses( $value, Voce_Meta_API::GetInstance()->label_allowed_html ); ?>
 					</label>
 				<?php endforeach; ?>
 			<?php endif; ?>
@@ -934,6 +998,21 @@ class Voce_Meta_Field_Checkbox extends Voce_Meta_Field {
 class Voce_Meta_Field_Radio extends Voce_Meta_Field {
 
 	/**
+	 * @constructor
+	 *
+	 * @param string $type
+	 * @param string $group
+	 * @param integer $id
+	 * @param string $label
+	 * @param array $args
+	 */
+	public function __construct( $type, $group, $id, $label, $args = array() ) {
+		parent::__construct( $type, $group, $id, $label, $args );
+
+		$this->multiple = false;
+	}
+
+	/**
 	 * @method render_clone_radio_js
 	 *
 	 * @param iVoce_Meta_Field $field
@@ -962,8 +1041,10 @@ class Voce_Meta_Field_Radio extends Voce_Meta_Field {
 						if ($el.attr('type') == 'radio') {
 							jQuery.each(['name','id'], function(k, field) {
 								index_position = $el.attr(field).indexOf('VPM_CLONE_INDEX');
-								new_val = [$el.attr(field).slice(0, index_position), multiple_index, $el.attr(field).slice(index_position + 15)].join('');
-								$el.attr(field, new_val);
+								if ( index_position > 0 ) {
+									new_val = [$el.attr(field).slice(0, index_position), multiple_index, $el.attr(field).slice(index_position + 15)].join('');
+									$el.attr(field, new_val);
+								}
 							});
 						}
 						jQuery.each($el.get(0).attributes, function() {

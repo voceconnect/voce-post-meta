@@ -1,23 +1,25 @@
-/* Add button */
+[data-multiple_index]:not([data-multiple_index='']) {
+    margin-left: 30px;
+}
 
+.vpm_multiple-add {
+    display: block;
+    clear: both;
+}
 
 .vpm_multiple-delete {
     position: relative;
-    top: 40px;
-}
-
-.vpm_multiple-delete:hover,
-.vpm_multiple-add:hover {
-    cursor: pointer;
-}
-
-[data-multiple_index]:not([data-multiple_index='']) {
-    margin-left: 30px;
+    top: 35px;
 }
 
 .vpm_multiple-add[data-wrapper],
 .vpm_multiple-delete[data-wrapper] {
     margin-left: 0;
+}
+
+.vpm_multiple-add:hover,
+.vpm_multiple-delete:hover {
+    cursor: pointer;
 }
 
 .vpm_multiple-add.disabled,
