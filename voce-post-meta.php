@@ -161,10 +161,10 @@ class Voce_Meta_API {
 	 *
 	 * @return boolean
 	 */
-	public function get_meta_value( $post_id, $group, $field ) {
+	public function get_meta_value( $post_id, $group, $field, $single = true ) {
 		if ( isset( $this->groups[ $group ] ) && isset( $this->groups[ $group ]->fields[ $field ] ) ) {
-			$values = $this->groups[ $group ]->fields[ $field ]->get_value( $post_id );
-			if ( empty( $this->groups[ $group ]->fields[ $field ]->multiple ) ) {
+			$values = $this->groups[ $group ]->fields[ $field ]->get_values( $post_id );
+			if ( empty( $this->groups[ $group ]->fields[ $field ]->multiple ) && $single ) {
 				return reset( $values );
 			}
 
@@ -503,7 +503,7 @@ class Voce_Meta_Field implements iVoce_Meta_Field {
 	 *
 	 * @return array Returns array of values if multiple, single value in array otherwise. Returns default in array if no values at all.
 	 */
-	public function get_value( $post_id ) {
+	public function get_values( $post_id ) {
 		$values = get_post_meta( $post_id, $this->get_input_id() );
 		if ( empty( $values ) ) {
 			return array( $this->default_value );
@@ -532,27 +532,27 @@ class Voce_Meta_Field implements iVoce_Meta_Field {
 	 */
 	public function update_field( $post_id ) {
 		$field_id = $this->get_input_id();
-		$old_value = $this->get_value( $post_id );
-		$new_value = array();
+		$old_values = $this->get_values( $post_id );
+		$new_values = array();
 
 		if ( isset( $_POST[ $this->group->id ][ $this->id ] ) ) {
-			$new_value = $_POST[ $this->group->id ][ $this->id ];
+			$new_values = $_POST[ $this->group->id ][ $this->id ];
 		}
 
 		if ( $this->multiple ) {
 			// remove initial value due to template
-			array_shift( $new_value );
+			array_shift( $new_values );
 		}
 		foreach ( $this->sanitize_callbacks as $callback ) {
 			if ( is_callable( $callback ) ) {
-				foreach ( $new_value as $k => $value ) {
-					$new_value[ $k ] = call_user_func( $callback, $this, @$old_value[ $k ], $value, $post_id );
+				foreach ( $new_values as $k => $value ) {
+					$new_values[ $k ] = call_user_func( $callback, $this, @$old_values[ $k ], $value, $post_id );
 				}
 			}
 		}
 
 		delete_post_meta( $post_id, $field_id );
-		foreach ( $new_value as $value ) {
+		foreach ( $new_values as $value ) {
 			if ( $value || $value != $this->default_value ) {
 				add_post_meta( $post_id, $field_id, $value );
 			}
@@ -565,7 +565,7 @@ class Voce_Meta_Field implements iVoce_Meta_Field {
 	 * @param type $post_id
 	 */
 	public function display_field( $post_id ) {
-		$values = $this->get_value( $post_id );
+		$values = $this->get_values( $post_id );
 		if ( $this->multiple && is_callable( $this->clone_template_callback ) && is_callable( $this->add_button_callback ) && is_callable( $this->delete_button_callback ) ) {
 			call_user_func( $this->clone_template_callback, $this, '', $post_id );
 			if ( is_callable( $this->clone_js_callback ) ) {
@@ -742,19 +742,6 @@ class Voce_Meta_Field implements iVoce_Meta_Field {
 	}
 
 	/**
-	 * @method display_hidden
-	 *
-	 * @param iVoce_Meta_Field $field
-	 * @param type $current_value
-	 * @param integer $post_id
-	 */
-	public static function display_hidden( $field, $current_value, $post_id ) {
-		?>
-		<input class="hidden" type="hidden" id="<?php echo esc_attr( $field->get_input_id() ); ?>" name="<?php echo esc_attr( $field->get_name() ); ?>" value="<?php echo esc_attr( $current_value ); ?>"  />
-		<?php
-	}
-
-	/**
 	 * @method display_dropdown
 	 *
 	 * @param iVoce_Meta_Field $field
@@ -816,7 +803,9 @@ class Voce_Meta_Field implements iVoce_Meta_Field {
 }
 
 
-class Voce_Meta_Field_Checkbox extends Voce_Meta_Field {
+class Voce_Meta_Field_Hidden extends Voce_Meta_Field {
+
+	public $value_callback;
 
 	/**
 	 * @constructor
@@ -831,6 +820,79 @@ class Voce_Meta_Field_Checkbox extends Voce_Meta_Field {
 		parent::__construct( $type, $group, $id, $label, $args );
 
 		$this->multiple = false;
+
+		$this->value_callback = ( ! empty( $field->args['value_callback'] ) ? $field->args['value_callback'] : array( __CLASS__, 'get_default_value' ) );
+	}
+
+	public function get_default_value() {
+		return $this->default_value;
+	}
+
+	/**
+	 * Returns post meta values
+	 *
+	 * @param integer $post_id
+	 *
+	 * @return array Returns array of values if multiple, single value in array otherwise. Returns default in array if no values at all.
+	 */
+	public function get_values( $post_id ) {
+		$values = get_post_meta( $post_id, $this->get_input_id() );
+		if ( empty( $values ) ) {
+			return array( call_user_func( $this->value_callback, $this, reset( $values ), $post_id ) );
+		}
+
+		return $values;
+	}
+
+	/**
+	 * Output HTML from application callback or user defined callback
+	 *
+	 * @param type $post_id
+	 */
+	public function display_field( $post_id ) {
+		$value = call_user_func( $this->value_callback, $this, reset( $this->get_values() ), $post_id );
+
+		foreach ( $this->display_callbacks as $callback ) {
+			if ( is_callable( $callback ) ) {
+				call_user_func( $callback, $this, $value, $post_id );
+			}
+		}
+	}
+
+	/**
+	 * @method display_hidden
+	 *
+	 * @param iVoce_Meta_Field $field
+	 * @param type $current_value
+	 * @param integer $post_id
+	 */
+	public static function display_hidden( $field, $value, $post_id ) {
+		?>
+		<input class="hidden" type="hidden" id="<?php echo esc_attr( $field->get_input_id() ); ?>" name="<?php echo esc_attr( $field->get_name() ); ?>" value="<?php echo esc_attr( $value ); ?>"  />
+		<?php
+	}
+}
+
+
+class Voce_Meta_Field_Checkbox extends Voce_Meta_Field {
+
+	public $item_format;
+
+	/**
+	 * @constructor
+	 *
+	 * @param string $type
+	 * @param string $group
+	 * @param integer $id
+	 * @param string $label
+	 * @param array $args
+	 */
+	public function __construct( $type, $group, $id, $label, $args = array() ) {
+		parent::__construct( $type, $group, $id, $label, $args );
+
+		$this->multiple = false;
+
+		$this->item_format = ( ! empty( $field->args['item_format'] ) && in_array( $field->args['item_format'], array( 'inline', 'block' ) ) ? $field->args['item_format'] : 'block' );
 	}
 
 	/**
@@ -840,7 +902,7 @@ class Voce_Meta_Field_Checkbox extends Voce_Meta_Field {
 	 */
 	public function update_field( $post_id ) {
 		$field_id = $this->get_input_id();
-		$old_values = $this->get_value( $post_id );
+		$old_values = $this->get_values( $post_id );
 		$new_values = array();
 
 		if ( isset( $_POST[ $this->group->id ][ $this->id ] ) ) {
@@ -871,12 +933,37 @@ class Voce_Meta_Field_Checkbox extends Voce_Meta_Field {
 	 * @param type $post_id
 	 */
 	public function display_field( $post_id ) {
-		$values = $this->get_value( $post_id );
+		$values = $this->get_values( $post_id );
 		foreach ( $this->display_callbacks as $callback ) {
 			if ( is_callable( $callback ) ) {
 				call_user_func( $callback, $this, $values, $post_id );
 			}
 		}
+	}
+
+	/**
+	 * Returns post meta values
+	 *
+	 * @param integer $post_id
+	 *
+	 * @return array Returns array of values if multiple, single value in array otherwise. Returns default in array if no values at all.
+	 */
+	public function get_values( $post_id ) {
+		$values = get_post_meta( $post_id, $this->get_input_id() );
+		if ( empty( $values ) ) {
+			return array( $this->default_value );
+		}
+
+		// Backwards compatibility with older versions of VPM
+		if ( is_array( reset( $values ) ) ) {
+			$updated_values = array();
+			foreach ( reset( $values ) as $key => $val ) {
+				$updated_values[] = $key;
+			}
+			$values = $updated_values;
+		}
+
+		return $values;
 	}
 
 	/**
@@ -948,7 +1035,6 @@ class Voce_Meta_Field_Checkbox extends Voce_Meta_Field {
 	 */
 	public static function display_checkbox( $field, $current_value, $post_id ) {
 		$val = ( ! empty( $field->args['value'] ) ? $field->args['value'] : 'on' );
-		$item_format = ! empty( $field->args['item_format'] ) && in_array( $field->args['item_format'], array( 'inline', 'block' ) ) ? $field->args['item_format'] : 'block';
 		?>
 		<p id="<?php echo esc_attr( $field->get_wrapper_id( $field->index ) ); ?>" class="<?php echo esc_attr( $field->get_wrapper_id() ); ?> " data-multiple_index="<?php echo esc_attr( $field->index ); ?>">
 			<?php echo self::get_label( $field ); ?>
@@ -958,7 +1044,7 @@ class Voce_Meta_Field_Checkbox extends Voce_Meta_Field {
 			<?php else: ?>
 				<?php foreach ($field->args['options'] as $key => $value): ?>
 					<?php $checked = checked( in_array( $key, $current_value ) , true, false ); ?>
-					<label style="display:<?php echo $item_format; ?>" class="voce-meta-checkbox">
+					<label style="display:<?php echo $field->item_format; ?>" class="voce-meta-checkbox">
 						<input type="checkbox" id="<?php echo esc_attr( $field->get_input_id( $field->index ) . '_' . $key ); ?>" name="<?php echo esc_attr( $field->get_name( $field->index ) ); ?>" value="<?php echo esc_attr( $key ); ?>" <?php echo $checked; ?> /><?php echo wp_kses( $value, Voce_Meta_API::GetInstance()->label_allowed_html ); ?>
 					</label>
 				<?php endforeach; ?>
@@ -976,7 +1062,6 @@ class Voce_Meta_Field_Checkbox extends Voce_Meta_Field {
 	 * @param integer $post_id
 	 */
 	public static function display_checkbox_template( $field, $current_value, $post_id ) {
-		$item_format = ! empty( $field->args['item_format'] ) && in_array( $field->args['item_format'], array( 'inline', 'block' ) ) ? $field->args['item_format'] : 'block';
 		?>
 		<p id="<?php echo esc_attr( $field->get_wrapper_id() ); ?>" class="<?php echo esc_attr( $field->get_wrapper_id() ); ?> ">
 			<?php echo self::get_label( $field ); ?>
@@ -984,7 +1069,7 @@ class Voce_Meta_Field_Checkbox extends Voce_Meta_Field {
 				<input type="checkbox" id="<?php echo esc_attr( $field->get_input_id() ); ?>" name="<?php echo esc_attr( $field->get_name() ) ?>" />
 			<?php else: ?>
 				<?php foreach ($field->args['options'] as $key => $value): ?>
-					<label style="display:<?php echo $item_format; ?>" class="voce-meta-checkbox">
+					<label style="display:<?php echo $field->item_format; ?>" class="voce-meta-checkbox">
 						<input type="checkbox" id="<?php echo esc_attr( $field->get_input_id( 'VPM_CLONE_INDEX' ) . '_' . $key ); ?>" name="<?php echo esc_attr( $field->get_name( 'VPM_CLONE_INDEX' ) . '[' . $key . ']') ?>" /><?php echo wp_kses( $value, Voce_Meta_API::GetInstance()->label_allowed_html ); ?>
 					</label>
 				<?php endforeach; ?>
@@ -996,6 +1081,8 @@ class Voce_Meta_Field_Checkbox extends Voce_Meta_Field {
 }
 
 class Voce_Meta_Field_Radio extends Voce_Meta_Field {
+
+	public $item_format;
 
 	/**
 	 * @constructor
@@ -1010,6 +1097,8 @@ class Voce_Meta_Field_Radio extends Voce_Meta_Field {
 		parent::__construct( $type, $group, $id, $label, $args );
 
 		$this->multiple = false;
+
+		$this->item_format = ( ! empty( $field->args['item_format'] ) && in_array( $field->args['item_format'], array( 'inline', 'block' ) ) ? $field->args['item_format'] : 'block' );
 	}
 
 	/**
@@ -1325,12 +1414,12 @@ function remove_metadata_field( $group, $id ) {
  * @param string $field
  * @param integer $post_id
  */
-function get_vpm_value( $group, $field, $post_id = false ){
+function get_vpm_value( $group, $field, $post_id = false, $single = true ){
 	if ( ! $post_id ) {
 		$post_id = get_the_ID();
 	}
 
-	return Voce_Meta_API::GetInstance()->get_meta_value( $post_id, $group, $field );
+	return Voce_Meta_API::GetInstance()->get_meta_value( $post_id, $group, $field, $single );
 }
 
 endif;
