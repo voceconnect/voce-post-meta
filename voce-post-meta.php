@@ -108,6 +108,12 @@ class Voce_Meta_API {
 				),
 			)
 		);
+		$mapping['fieldset'] = array(
+			'class' => 'Voce_Meta_Fieldset',
+			'args'  => array(
+				'display_callbacks'       => array( array( 'Voce_Meta_Fieldset', 'display_fieldset' ) ),
+			),
+		);
 
 		/* v2.0.0: add 'voce_' to filter to bring it in line with other plugin filters */
 		$this->type_mapping = apply_filters( 'voce_meta_type_mapping', $mapping );
@@ -162,13 +168,27 @@ class Voce_Meta_API {
 	 * @return boolean
 	 */
 	public function get_meta_value( $post_id, $group, $field, $single = true ) {
-		if ( isset( $this->groups[ $group ] ) && isset( $this->groups[ $group ]->fields[ $field ] ) ) {
-			$values = $this->groups[ $group ]->fields[ $field ]->get_values( $post_id );
-			if ( empty( $this->groups[ $group ]->fields[ $field ]->multiple ) && $single ) {
-				return reset( $values );
-			}
+		if ( is_array( $group ) && 2 == count( $group ) ) {
+			$fieldset = end( $group );
+			$group = reset( $group );
+		}
+		if ( isset( $this->groups[ $group ] ) ) {
+			if ( empty( $fieldset ) && isset( $this->groups[ $group ]->fields[ $field ] ) ) {
+				$values = $this->groups[ $group ]->fields[ $field ]->get_values( $post_id );
+				if ( empty( $this->groups[ $group ]->fields[ $field ]->multiple ) && $single ) {
+					return reset( $values );
+				}
 
-			return $values;
+				return $values;
+			}
+			if ( ! empty( $this->groups[ $group ]->fields[ $fieldset ]->fields[ $field ] ) ) {
+				$values = $this->groups[ $group ]->fields[ $fieldset ]->fields[ $field ]->get_values( $post_id );
+				if ( empty( $this->groups[ $group ]->fields[ $fieldset ]->fields[ $field ]->multiple ) && $single ) {
+					return reset( $values );
+				}
+
+				return $values;
+			}
 		}
 
 		return false;
@@ -206,49 +226,49 @@ class Voce_Meta_Group {
 	 *
 	 * @var array
 	 */
-	var $fields;
+	public $fields;
 
 	/**
 	 * ID of the group
 	 *
 	 * @var string
 	 */
-	var $id;
+	public $id;
 
 	/**
 	 * Title of group
 	 *
 	 * @var string
 	 */
-	var $title;
+	public $title;
 
 	/**
 	 * Descriptive text to display at the top of the metabox
 	 *
 	 * @var string
 	 */
-	var $description;
+	public $description;
 
 	/**
 	 * Required capability to edit this group
 	 *
 	 * @var string
 	 */
-	var $capability;
+	public $capability;
 
 	/**
 	 * Context used for the metabox
 	 *
 	 * @var string
 	 */
-	var $context;
+	public $context;
 
 	/**
 	 * Priority for the metabox
 	 *
 	 * @var string
 	 */
-	var $priority;
+	public $priority;
 
 	/**
 	 * @param interger id
@@ -416,6 +436,162 @@ interface iVoce_Meta_Field {
 
 
 /**
+ * Class Voce_Meta_Fieldset
+ *
+ * Handle meta fieldsets
+ */
+class Voce_Meta_Fieldset implements iVoce_Meta_Field {
+
+	public $type;
+	public $group;
+	public $id;
+	public $label;
+	public $post_type;
+
+	public $fields;
+	public $capability;
+	public $description;
+
+	public $multiple;
+	public $sortable;
+
+	/**
+	 * @constructor
+	 *
+	 * @param interger id
+	 * @param string title
+	 * @param array args
+	 *
+	 * @constructor
+	 */
+	public function __construct( $type, $group, $id, $label, $args = array() ) {
+		$this->type = $type;
+		$this->group = $group;
+		$this->id = $id;
+		$this->label = $label;
+		$this->post_type = get_post_type( $id );
+		$this->fields = array();
+
+		$this->args = $args;
+
+		$defaults = array(
+			'capability'  => $this->group->capability,
+			'description' => '',
+
+			'multiple'    => false,
+			'sortable'    => false,
+		);
+		$args = wp_parse_args( $args, $defaults );
+
+		$this->capability = $args['capability'];
+		$this->description = $args['description'];
+
+		$this->multiple = ( intval( $args['multiple'] ) >= 2 ? intval( $args['multiple'] ) : (bool)$args['multiple'] );
+		$this->sortable = (bool)$args['sortable'];
+
+	}
+
+	/**
+	 * Output HTML from application callback or user defined callback
+	 *
+	 * @param integer $post_id
+	 */
+	public function display_field( $post_id ) {
+		printf( '<fieldset class="vpm_fieldset-%s">', $this->get_fieldset_id() );
+		echo ( ! empty( $this->description ) ? '<p class="description">' . wp_kses( $this->description, Voce_Meta_API::GetInstance()->description_allowed_html ) . '</p>' : '' );
+		foreach ( $this->fields as $field ) {
+			$field->display_field( $post_id );
+		}
+		echo '</fieldset>';
+	}
+
+	/**
+	 * Returns fieldset id attribute
+	 *
+	 * @return string Returns the HTML id of the fieldset
+	 */
+	public function get_fieldset_id(){
+		return "{$this->group->id}_{$this->id}";
+	}
+
+	/**
+	 * @method __call
+	 *
+	 * @param string $name
+	 * @param array $func_args
+	 *
+	 * @return iVoce_Meta_Field|null New field or null
+	 */
+	public function __call( $name, $func_args ) {
+		if ( strpos( $name, 'add_field_' ) === 0 ) {
+			$type = substr( $name, 10 );
+			$api = Voce_Meta_API::GetInstance();
+
+			if ( ! empty( $api->type_mapping[ $type ] ) ) {
+				$mapping = $api->type_mapping[ $type ];
+				$field_args = isset( $func_args[2] ) ? $func_args[2] : array();
+				$field_args = wp_parse_args( $field_args, $mapping['args'] );
+				return $this->add_field( $type, $mapping['class'], $func_args[0], $func_args[1], $field_args );
+			}
+
+			return null;
+		}
+	}
+
+	/**
+	 * Creates, adds, and returns a new field for this fieldset
+	 *
+	 * @param string $type
+	 * @param string $type_class
+	 * @param string $id
+	 * @param string $label
+	 * @param array $args
+	 *
+	 * @return iVoce_Meta_Field
+	 */
+	public function add_field( $type, $type_class, $id, $label, $args = array() ) {
+		if ( ! isset( $this->fields[ $id ] ) ) {
+			if ( class_exists( $type_class ) && in_array( 'iVoce_Meta_Field', class_implements( $type_class ) ) ) {
+				$this->fields[ $id ] = new $type_class( $type, array( $this->group, $this ), $id, $label, $args );
+			}
+		}
+
+		return $this->fields[ $id ];
+	}
+
+	/**
+	 * Deletes a field in this group
+	 *
+	 * @param string $id
+	 *
+	 * @return bool
+	 */
+	public function remove_field( $id ) {
+		if ( isset( $this->fields[ $id ] ) ){
+			unset( $this->fields[ $id ] );
+			return true;
+		}
+
+		return false;
+	}
+
+	/**
+	 * Update post meta
+	 *
+	 * @param type $post_id
+	 */
+	public function update_field( $post_id ) {
+
+
+		foreach ( $this->fields as $field ) {
+			$field->update_field( $post_id );
+		}
+	}
+
+}
+
+
+/**
  * Class Voce_Meta_Field
  *
  * Class for handling basic field types
@@ -424,6 +600,7 @@ class Voce_Meta_Field implements iVoce_Meta_Field {
 
 	public $type;
 	public $group;
+	public $fieldset;
 	public $id;
 	public $label;
 	public $post_type;
@@ -457,10 +634,17 @@ class Voce_Meta_Field implements iVoce_Meta_Field {
 	 */
 	public function __construct( $type, $group, $id, $label, $args = array() ) {
 		$this->type = $type;
-		$this->group = $group;
 		$this->id = $id;
 		$this->label = $label;
 		$this->post_type = get_post_type( $id );
+
+		$fieldset = null;
+		if ( is_array( $group ) && 2 == count( $group ) ) {
+			$fieldset = end( $group );
+			$group = reset( $group );
+		}
+		$this->group = $group;
+		$this->fieldset = $fieldset;
 
 		$this->args = $args;
 
@@ -520,7 +704,8 @@ class Voce_Meta_Field implements iVoce_Meta_Field {
 	 * @return integer Returns number of values saved for meta
 	 */
 	public function get_count( $post_id ) {
-		$values = get_post_meta( $post_id, "{$this->group->id}_{$this->id}" );
+		$key = sprintf( "{$this->group->id}_%s{$this->id}", $this->fieldset ? "{$this->fieldset->id}_" : '' );
+		$values = get_post_meta( $post_id, $key );
 
 		return count( $values );
 	}
@@ -531,12 +716,13 @@ class Voce_Meta_Field implements iVoce_Meta_Field {
 	 * @param type $post_id
 	 */
 	public function update_field( $post_id ) {
+		$group_id = ( $this->fieldset ? "{$this->group->id}_{$this->fieldset->id}" : $this->group->id );
 		$field_id = $this->get_input_id();
 		$old_values = $this->get_values( $post_id );
 		$new_values = array();
 
-		if ( isset( $_POST[ $this->group->id ][ $this->id ] ) ) {
-			$new_values = $_POST[ $this->group->id ][ $this->id ];
+		if ( isset( $_POST[ $group_id ][ $this->id ] ) ) {
+			$new_values = $_POST[ $group_id ][ $this->id ];
 		}
 
 		if ( $this->multiple ) {
@@ -562,7 +748,7 @@ class Voce_Meta_Field implements iVoce_Meta_Field {
 	/**
 	 * Output HTML from application callback or user defined callback
 	 *
-	 * @param type $post_id
+	 * @param integer $post_id
 	 */
 	public function display_field( $post_id ) {
 		$values = $this->get_values( $post_id );
@@ -597,7 +783,8 @@ class Voce_Meta_Field implements iVoce_Meta_Field {
 	 * @return string Returns name for form element.
 	 */
 	public function get_name( $index = '' ){
-		return "{$this->group->id}[{$this->id}][{$index}]";
+		$group_id = ( $this->fieldset ? "{$this->group->id}_{$this->fieldset->id}" : $this->group->id );
+		return "{$group_id}[{$this->id}][{$index}]";
 	}
 
 	/**
@@ -606,7 +793,8 @@ class Voce_Meta_Field implements iVoce_Meta_Field {
 	 * @return string Returns input id used on the form element
 	 */
 	public function get_input_id( $index = '', $separator = '-' ){
-		return "{$this->group->id}_{$this->id}" . ( $separator && $index ? $separator . $index : '' );
+		$group_id = ( $this->fieldset ? "{$this->group->id}_{$this->fieldset->id}" : $this->group->id );
+		return "{$group_id}_{$this->id}" . ( $separator && $index ? $separator . $index : '' );
 	}
 
 	/**
@@ -811,7 +999,7 @@ class Voce_Meta_Field_Hidden extends Voce_Meta_Field {
 	 * @constructor
 	 *
 	 * @param string $type
-	 * @param string $group
+	 * @param string|array $group
 	 * @param integer $id
 	 * @param string $label
 	 * @param array $args
@@ -821,7 +1009,7 @@ class Voce_Meta_Field_Hidden extends Voce_Meta_Field {
 
 		$this->multiple = false;
 
-		$this->value_callback = ( ! empty( $field->args['value_callback'] ) ? $field->args['value_callback'] : array( __CLASS__, 'get_default_value' ) );
+		$this->value_callback = ( ! empty( $this->args['value_callback'] ) ? $this->args['value_callback'] : array( __CLASS__, 'get_default_value' ) );
 	}
 
 	public function get_default_value() {
@@ -850,7 +1038,7 @@ class Voce_Meta_Field_Hidden extends Voce_Meta_Field {
 	 * @param type $post_id
 	 */
 	public function display_field( $post_id ) {
-		$value = call_user_func( $this->value_callback, $this, reset( $this->get_values() ), $post_id );
+		$value = call_user_func( $this->value_callback, $this, reset( $this->get_values( $post_id ) ), $post_id );
 
 		foreach ( $this->display_callbacks as $callback ) {
 			if ( is_callable( $callback ) ) {
@@ -882,7 +1070,7 @@ class Voce_Meta_Field_Checkbox extends Voce_Meta_Field {
 	 * @constructor
 	 *
 	 * @param string $type
-	 * @param string $group
+	 * @param string|array $group
 	 * @param integer $id
 	 * @param string $label
 	 * @param array $args
@@ -892,7 +1080,7 @@ class Voce_Meta_Field_Checkbox extends Voce_Meta_Field {
 
 		$this->multiple = false;
 
-		$this->item_format = ( ! empty( $field->args['item_format'] ) && in_array( $field->args['item_format'], array( 'inline', 'block' ) ) ? $field->args['item_format'] : 'block' );
+		$this->item_format = ( ! empty( $this->args['item_format'] ) && in_array( $this->args['item_format'], array( 'inline', 'block' ) ) ? $this->args['item_format'] : 'block' );
 	}
 
 	/**
@@ -901,12 +1089,13 @@ class Voce_Meta_Field_Checkbox extends Voce_Meta_Field {
 	 * @param type $post_id
 	 */
 	public function update_field( $post_id ) {
+		$group_id = ( $this->fieldset ? "{$this->group->id}_{$this->fieldset->id}" : $this->group->id );
 		$field_id = $this->get_input_id();
 		$old_values = $this->get_values( $post_id );
 		$new_values = array();
 
-		if ( isset( $_POST[ $this->group->id ][ $this->id ] ) ) {
-			$new_values = $_POST[ $this->group->id ][ $this->id ];
+		if ( isset( $_POST[ $group_id ][ $this->id ] ) ) {
+			$new_values = $_POST[ $group_id ][ $this->id ];
 		}
 
 		foreach ( $this->sanitize_callbacks as $callback ) {
@@ -1080,6 +1269,7 @@ class Voce_Meta_Field_Checkbox extends Voce_Meta_Field {
 	}
 }
 
+
 class Voce_Meta_Field_Radio extends Voce_Meta_Field {
 
 	public $item_format;
@@ -1088,7 +1278,7 @@ class Voce_Meta_Field_Radio extends Voce_Meta_Field {
 	 * @constructor
 	 *
 	 * @param string $type
-	 * @param string $group
+	 * @param string|array $group
 	 * @param integer $id
 	 * @param string $label
 	 * @param array $args
@@ -1098,7 +1288,7 @@ class Voce_Meta_Field_Radio extends Voce_Meta_Field {
 
 		$this->multiple = false;
 
-		$this->item_format = ( ! empty( $field->args['item_format'] ) && in_array( $field->args['item_format'], array( 'inline', 'block' ) ) ? $field->args['item_format'] : 'block' );
+		$this->item_format = ( ! empty( $this->args['item_format'] ) && in_array( $this->args['item_format'], array( 'inline', 'block' ) ) ? $this->args['item_format'] : 'block' );
 	}
 
 	/**
@@ -1165,7 +1355,7 @@ class Voce_Meta_Field_Radio extends Voce_Meta_Field {
 	 * @method display_radio
 	 *
 	 * @param iVoce_Meta_Field $field
-	 * @param type $current_value
+	 * @param mixed $current_value
 	 * @param integer $post_id
 	 */
 	public static function display_radio( $field, $current_value, $post_id ) {
@@ -1372,7 +1562,7 @@ function add_metadata_group( $id, $title, $args = array() ) {
 /**
  * @method add_metadata_field
  *
- * @param string $group
+ * @param string|array $group
  * @param integer $id
  * @param string $label
  * @param string $type
@@ -1382,9 +1572,18 @@ function add_metadata_group( $id, $title, $args = array() ) {
  */
 function add_metadata_field( $group, $id, $label, $type = 'text', $args = array() ) {
 	$api = Voce_Meta_API::GetInstance();
+	if ( is_array( $group ) && 2 == count( $group ) ) {
+		$fieldset = end( $group );
+		$group = reset( $group );
+	}
 	if ( isset( $api->groups[ $group ] ) ) {
 		$func = "add_field_{$type}";
-		return $api->groups[ $group ]->$func( $id, $label, $args );
+		if ( empty( $fieldset ) ) {
+			return $api->groups[ $group ]->$func( $id, $label, $args );
+		}
+		if ( ! empty( $api->groups[ $group ]->fields[ $fieldset ] ) ) {
+			return $api->groups[ $group ]->fields[ $fieldset ]->$func( $id, $label, $args );
+		}
 	}
 
 	return false;
@@ -1393,15 +1592,24 @@ function add_metadata_field( $group, $id, $label, $type = 'text', $args = array(
 /**
  * @method remove_metadata_field
  *
- * @param string $group
+ * @param string|array $group
  * @param integer $id
  *
  * @return boolean
  */
 function remove_metadata_field( $group, $id ) {
 	$api = Voce_Meta_API::GetInstance();
+	if ( is_array( $group ) && 2 == count( $group ) ) {
+		$fieldset = end( $group );
+		$group = reset( $group );
+	}
 	if ( isset( $api->groups[ $group ] ) ) {
-		return $api->groups[ $group ]->remove_field( $id );
+		if ( empty( $fieldset ) ) {
+			return $api->groups[ $group ]->remove_field( $id );
+		}
+		if ( ! empty( $api->groups[ $group ]->fields[ $fieldset ] ) ) {
+			return $api->groups[ $group ]->fields[ $fieldset ]->remove_field( $id );
+		}
 	}
 
 	return false;
@@ -1410,7 +1618,7 @@ function remove_metadata_field( $group, $id ) {
 /**
  * @method get_vpm_value
  *
- * @param string $group
+ * @param string|array $group
  * @param string $field
  * @param integer $post_id
  */
