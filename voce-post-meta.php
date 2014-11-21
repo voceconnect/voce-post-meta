@@ -783,7 +783,7 @@ class Voce_Meta_Fieldset implements iVoce_Meta_Field {
 				}
 			}
 		}
-var_dump( $current_data );die;
+
 		$index_counter = ( ! empty( $_POST[ $this->get_index_count_name() ] ) ? $_POST[ $this->get_index_count_name() ] : 1 );
 		$field_updates = array();
 		for ( $index = 1; $index <= $index_counter; $index++ ) {
