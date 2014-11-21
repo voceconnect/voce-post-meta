@@ -1,5 +1,9 @@
-[data-multiple_index]:not([data-multiple_index='']) {
+[data-multiple_index]:not([data-multiple_index=""]) {
     margin-left: 30px;
+}
+
+fieldset[data-multiple="0"][data-multiple_index="1"] {
+    margin-left: auto;
 }
 
 .vpm_multiple-add {
@@ -26,4 +30,9 @@
 .vpm_multiple-delete.disabled {
     color: #ddd;
     cursor: default;
+}
+
+.vpm_fieldset {
+    padding: 0 10px;
+    border: 1px solid lightgray;
 }

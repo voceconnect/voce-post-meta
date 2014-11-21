@@ -45,36 +45,43 @@ class Voce_Meta_API {
 
 		/* v2.0.0: move/rename default display/sanitization functions into default class */
 		$mapping = array();
-		$mapping['text'] = array(
-			'class' => 'Voce_Meta_Field',
+		$mapping['fieldset'] = array(
+			'class' => 'Voce_Meta_Fieldset',
 			'args'  => array(
-				'display_callbacks' => array( array( 'Voce_Meta_Field', 'display_text' ) ),
+				'display_callbacks'       => array( array( 'Voce_Meta_Fieldset', 'display_fieldset' ) ),
+				'clone_template_callback' => array( 'Voce_Meta_Fieldset', 'display_fieldset_template' ),
+			),
+		);
+		$mapping['text'] = array(
+			'class' => 'Voce_Meta_Field_Text',
+			'args'  => array(
+				'display_callbacks' => array( array( 'Voce_Meta_Field_Text', 'display_text' ) ),
+			),
+		);
+		$mapping['numeric'] = array(
+			'class' => 'Voce_Meta_Field_Text',
+			'args'  => array(
+				'display_callbacks'  => array( array( 'Voce_Meta_Field_Text', 'display_text' ) ),
+				'sanitize_callbacks' => array( array( 'Voce_Meta_Field_Text', 'sanitize_numeric' ) ),
 			),
 		);
 		$mapping['textarea'] = array(
-			'class' => 'Voce_Meta_Field',
+			'class' => 'Voce_Meta_Field_Textarea',
 			'args'  => array(
-				'display_callbacks' => array( array( 'Voce_Meta_Field', 'display_textarea' ) ),
+				'display_callbacks' => array( array( 'Voce_Meta_Field_Textarea', 'display_textarea' ) ),
 			),
 		);
 		$mapping['hidden'] = array(
-			'class' => 'Voce_Meta_Field',
+			'class' => 'Voce_Meta_Field_Hidden',
 			'args'  => array(
-				'display_callbacks' => array( array( 'Voce_Meta_Field', 'display_hidden' ) ),
+				'display_callbacks' => array( array( 'Voce_Meta_Field_Hidden', 'display_hidden' ) ),
 			)
 		);
-		$mapping['numeric'] = array(
-			'class' => 'Voce_Meta_Field',
-			'args'  => array(
-				'display_callbacks'  => array( array( 'Voce_Meta_Field', 'display_text' ) ),
-				'sanitize_callbacks' => array( array( 'Voce_Meta_Field', 'sanitize_numeric' ) ),
-			),
-		);
 		$mapping['dropdown'] = array(
-			'class' => 'Voce_Meta_Field',
+			'class' => 'Voce_Meta_Field_Dropdown',
 			'args'  => array(
-				'display_callbacks'  => array( array( 'Voce_Meta_Field', 'display_dropdown' ) ),
-				'sanitize_callbacks' => array( array( 'Voce_Meta_Field', 'sanitize_dropdown' ) ),
+				'display_callbacks'  => array( array( 'Voce_Meta_Field_Dropdown', 'display_dropdown' ) ),
+				'sanitize_callbacks' => array( array( 'Voce_Meta_Field_Dropdown', 'sanitize_dropdown' ) ),
 			),
 		);
 		$mapping['checkbox'] = array(
@@ -108,12 +115,6 @@ class Voce_Meta_API {
 				),
 			)
 		);
-		$mapping['fieldset'] = array(
-			'class' => 'Voce_Meta_Fieldset',
-			'args'  => array(
-				'display_callbacks'       => array( array( 'Voce_Meta_Fieldset', 'display_fieldset' ) ),
-			),
-		);
 
 		/* v2.0.0: add 'voce_' to filter to bring it in line with other plugin filters */
 		$this->type_mapping = apply_filters( 'voce_meta_type_mapping', $mapping );
@@ -138,8 +139,8 @@ class Voce_Meta_API {
 	}
 
 	public static function enqueue_scripts() {
-		wp_enqueue_script( 'vpm_multiple-fields', plugins_url( '/js/multiple-fields.js', __FILE__ ), array( 'jquery', 'jquery-ui-sortable' ) );
-		wp_enqueue_style( 'vpm_multiple-fields', plugins_url( '/css/multiple-fields.css', __FILE__ ) );
+		wp_enqueue_script( 'voce-post-meta', plugins_url( '/js/voce-post-meta.js', __FILE__ ), array( 'jquery', 'jquery-ui-sortable' ) );
+		wp_enqueue_style( 'voce-post-meta', plugins_url( '/css/voce-post-meta.css', __FILE__ ) );
 	}
 
 	/**
@@ -450,10 +451,52 @@ class Voce_Meta_Fieldset implements iVoce_Meta_Field {
 
 	public $fields;
 	public $capability;
+	public $display_callbacks;
 	public $description;
 
 	public $multiple;
+	public $add_button_callback;
+	public $delete_button_callback;
+	public $clone_template_callback;
+	public $clone_js;
+	public $clone_js_callback;
 	public $sortable;
+
+	public $index = 0;
+
+	/**
+	 * @method init
+	 */
+	public static function init() {
+		add_filter( 'wp_ajax_vpm_add_fieldset', function() {
+			// TODO: add nonce
+			$post_id = $_POST['post_id'];
+			$group_id = $_POST['group_id'];
+			$fieldset_id = $_POST['field_id'];
+			$index = (int)$_POST['index'];
+
+			$api = Voce_Meta_API::GetInstance();
+			if ( empty( $api->groups[ $group_id ]->fields[ $fieldset_id ] ) ) {
+				exit;
+			}
+			if ( $index < 2 ) {
+				exit;
+			}
+
+			$fieldset = $api->groups[ $group_id ]->fields[ $fieldset_id ];
+
+			$fieldset->index = $index;
+			foreach ( $fieldset->display_callbacks as $callback ) {
+				if ( is_callable( $callback ) ) {
+					foreach ( $fieldset->fields as $field ) {
+						$field->display_field( $post_id );
+					}
+				}
+			}
+
+			exit;
+		} );
+	}
 
 	/**
 	 * @constructor
@@ -475,18 +518,30 @@ class Voce_Meta_Fieldset implements iVoce_Meta_Field {
 		$this->args = $args;
 
 		$defaults = array(
-			'capability'  => $this->group->capability,
-			'description' => '',
+			'capability'              => $this->group->capability,
+			'display_callbacks'       => array(),
+			'description'             => '',
 
-			'multiple'    => false,
-			'sortable'    => false,
+			'multiple'                => false,
+			'add_button_callback'     => array( __CLASS__, 'render_add_button' ),
+			'delete_button_callback'  => array( __CLASS__, 'render_delete_button' ),
+			'clone_template_callback' => '',
+			'clone_js'                => 'vpm_clone_field',
+			'clone_js_callback'       => array( __CLASS__, 'render_clone_field_js' ),
+			'sortable'                => false,
 		);
 		$args = wp_parse_args( $args, $defaults );
 
 		$this->capability = $args['capability'];
+		$this->display_callbacks = $args['display_callbacks'];
 		$this->description = $args['description'];
 
 		$this->multiple = ( intval( $args['multiple'] ) >= 2 ? intval( $args['multiple'] ) : (bool)$args['multiple'] );
+		$this->add_button_callback = $args['add_button_callback'];
+		$this->delete_button_callback = $args['delete_button_callback'];
+		$this->clone_template_callback = ( is_callable( $args['clone_template_callback'] ) ? $args['clone_template_callback'] : reset( $this->display_callbacks ) );
+		$this->clone_js = $args['clone_js'];
+		$this->clone_js_callback = $args['clone_js_callback'];
 		$this->sortable = (bool)$args['sortable'];
 
 	}
@@ -497,12 +552,130 @@ class Voce_Meta_Fieldset implements iVoce_Meta_Field {
 	 * @param integer $post_id
 	 */
 	public function display_field( $post_id ) {
-		printf( '<fieldset class="vpm_fieldset-%s">', $this->get_fieldset_id() );
-		echo ( ! empty( $this->description ) ? '<p class="description">' . wp_kses( $this->description, Voce_Meta_API::GetInstance()->description_allowed_html ) . '</p>' : '' );
-		foreach ( $this->fields as $field ) {
+		$mapping = $this->get_mapping_data( $post_id );
+		if ( $this->multiple && is_callable( $this->clone_template_callback ) && is_callable( $this->add_button_callback ) && is_callable( $this->delete_button_callback ) ) {
+			call_user_func( $this->clone_template_callback, $this, 0 );
+			if ( is_callable( $this->clone_js_callback ) ) {
+				call_user_func( $this->clone_js_callback, $this, $post_id );
+			}
+
+		}
+
+		if ( ! count( array_filter( $mapping ) ) ) {
+			$mapping = array( 1 => '' );
+		}
+		foreach ( $mapping as $index => $meta ) {
+			$this->index = $index;
+			foreach ( $this->display_callbacks as $callback ) {
+				if ( is_callable( $callback ) ) {
+					if ( $this->multiple ) {
+						call_user_func( $this->delete_button_callback, $this, $post_id );
+					}
+					call_user_func( $callback, $this, $post_id );
+				}
+			}
+		}
+		$this->index++;
+		if ( $this->multiple ) {
+			call_user_func( $this->add_button_callback, $this, $post_id );
+		}
+		?>
+		<input type="hidden" name="<?php echo $this->get_index_count_name(); ?>" value="<?php echo $this->index - 1; ?>">
+		<?php
+	}
+
+	/**
+	 * Render fieldset
+	 *
+	 * @param integer $post_id
+	 */
+	public static function display_fieldset( $fieldset, $post_id ) {
+		printf( '<fieldset id="%s" class="vpm_fieldset %s" data-multiple_index="%d" data-multiple="%d">',
+			esc_attr( $fieldset->get_wrapper_id( $fieldset->index ) ),
+			esc_attr( $fieldset->get_wrapper_id() ),
+			$fieldset->index,
+			$fieldset->multiple );
+		echo $fieldset->get_legend();
+		echo ( ! empty( $fieldset->description ) ? '<p class="description">' . wp_kses( $fieldset->description, Voce_Meta_API::GetInstance()->description_allowed_html ) . '</p>' : '' );
+		echo '<div class="vpm_fieldset_fields">';
+		foreach ( $fieldset->fields as $field ) {
 			$field->display_field( $post_id );
 		}
+		echo '</div>';
 		echo '</fieldset>';
+	}
+
+	/**
+	 * Render fieldset
+	 *
+	 * @param integer $post_id
+	 */
+	public static function display_fieldset_template( $fieldset, $post_id ) {
+		printf( '<fieldset id="%s" class="vpm_fieldset %s hidden" data-multiple="%d">',
+			esc_attr( $fieldset->get_wrapper_id() ),
+			esc_attr( $fieldset->get_wrapper_id() ),
+			$fieldset->multiple );
+		echo $fieldset->get_legend();
+		echo ( ! empty( $fieldset->description ) ? '<p class="description">' . wp_kses( $fieldset->description, Voce_Meta_API::GetInstance()->description_allowed_html ) . '</p>' : '' );
+		echo '<div class="vpm_fieldset_fields"></div>';
+		echo '</fieldset>';
+	}
+
+	/**
+	 * Returns post meta values
+	 *
+	 * @param integer $post_id
+	 *
+	 * @return array Returns array of values if multiple, single value in array otherwise. Returns default in array if no values at all.
+	 */
+	public function get_values( $post_id ) {
+		$mapping = get_post_meta( $post_id, $this->get_mapping_key() );
+
+		if ( empty( $values ) ) {
+			return array( $this->default_value );
+		}
+
+		return $values;
+	}
+
+	/**
+	 * Returns number of saved values for fieldset
+	 *
+	 * @param integer $post_id
+	 *
+	 * @return integer Returns number of values saved for meta
+	 */
+	public function get_count( $post_id ) {
+		$mapping = get_post_meta( $post_id, $this->get_mapping_key() );
+
+		return count( $mapping );
+	}
+
+	/**
+	 * Returns key for keeping count of submitted fieldsets
+	 *
+	 * @return string Returns the key for index counter
+	 */
+	public function get_index_count_name() {
+		return $this->get_fieldset_id() . '--index';
+	}
+
+	/**
+	 * Returns key for mapping array meta
+	 *
+	 * @return string Returns the key used for saving the mapping array
+	 */
+	public function get_mapping_key() {
+		return "{$this->group->id}__{$this->id}__mapping";
+	}
+
+	/**
+	 * Returns mapping array for fieldset
+	 *
+	 * @return array Returns the mapping array for the fields in the fieldset
+	 */
+	public function get_mapping_data( $post_id ){
+		return (array)get_post_meta( $post_id, $this->get_mapping_key(), true );
 	}
 
 	/**
@@ -510,8 +683,26 @@ class Voce_Meta_Fieldset implements iVoce_Meta_Field {
 	 *
 	 * @return string Returns the HTML id of the fieldset
 	 */
-	public function get_fieldset_id(){
-		return "{$this->group->id}_{$this->id}";
+	public function get_fieldset_id( $index = '' ){
+		return "{$this->group->id}__{$this->id}" . ( $index ? "-{$index}" : '' );
+	}
+
+	/**
+	 * Returns field wrapper id
+	 *
+	 * @return string Returns id used on the form element wrapper
+	 */
+	public function get_wrapper_id( $index = '' ) {
+		return "vpm_fieldset-" . $this->get_fieldset_id( $index );
+	}
+
+	/**
+	 * @method get_legend
+	 *
+	 * @return string
+	 */
+	public function get_legend() {
+		return ( empty( $this->label ) ? '' : sprintf( '<legend>%s:</legend>', wp_kses( $this->label, Voce_Meta_API::GetInstance()->label_allowed_html ) ) );
 	}
 
 	/**
@@ -552,6 +743,7 @@ class Voce_Meta_Fieldset implements iVoce_Meta_Field {
 	public function add_field( $type, $type_class, $id, $label, $args = array() ) {
 		if ( ! isset( $this->fields[ $id ] ) ) {
 			if ( class_exists( $type_class ) && in_array( 'iVoce_Meta_Field', class_implements( $type_class ) ) ) {
+				$args['multiple'] = false;
 				$this->fields[ $id ] = new $type_class( $type, array( $this->group, $this ), $id, $label, $args );
 			}
 		}
@@ -581,15 +773,122 @@ class Voce_Meta_Fieldset implements iVoce_Meta_Field {
 	 * @param type $post_id
 	 */
 	public function update_field( $post_id ) {
-
-
-		foreach ( $this->fields as $field ) {
-			$field->update_field( $post_id );
+		$current_data = $this->get_mapping_data( $post_id );
+		foreach ( $current_data as $field_data ) {
+			if ( is_array( $field_data ) && count( $field_data ) ) {
+				foreach ( $field_data as $meta_ids ) {
+					foreach ( $meta_ids as $meta_id ) {
+						delete_metadata_by_mid( 'post', $meta_id );
+					}
+				}
+			}
 		}
+var_dump( $current_data );die;
+		$index_counter = ( ! empty( $_POST[ $this->get_index_count_name() ] ) ? $_POST[ $this->get_index_count_name() ] : 1 );
+		$field_updates = array();
+		for ( $index = 1; $index <= $index_counter; $index++ ) {
+			if ( empty( $_POST[ $this->get_fieldset_id() . "-{$index}" ] ) ) {
+				continue;
+			}
+			$this->index = $index;
+			foreach ( $this->fields as $key => $field ) {
+				$field_updates[ $index ][ $field->id ] = $field->update_field( $post_id );
+			}
+		}
+
+		update_post_meta( $post_id, $this->get_mapping_key( $post_id ), $field_updates );
+	}
+
+	/**
+	 * @method render_add_button
+	 *
+	 * @param iVoce_Meta_Field $field
+	 * @param integer $post_id
+	 */
+	public static function render_add_button( $field, $post_id ) {
+		$class = ( intval( $field->multiple ) >= 2 && intval( $field->multiple ) <= $field->get_count( $post_id ) ? 'disabled' : '' );
+		printf( '<span data-wrapper="%s" data-group="%s" data-field="%s" data-clone_js="%s" data-multiple_index="%d" data-multiple_max="%d" class="vpm_multiple-add %s dashicons dashicons-plus-alt">Add</span>',
+			esc_attr( $field->get_wrapper_id() ),
+			esc_attr( $field->group->id ),
+			esc_attr( $field->id ),
+			esc_attr( $field->clone_js ),
+			$field->index,
+			$field->multiple,
+			esc_attr( $class )
+		);
+	}
+
+	/**
+	 * @method render_delete_button
+	 *
+	 * @param iVoce_Meta_Field $field
+	 * @param integer $post_id
+	 */
+	public static function render_delete_button( $field, $post_id ) {
+		printf( '<span data-wrapper="%s" data-multiple_index="%d" class="vpm_multiple-delete dashicons dashicons-trash"></span>',
+			esc_attr( $field->get_wrapper_id() ),
+			$field->index
+		);
+	}
+
+	/**
+	 * @method render_clone_field_js
+	 *
+	 * @param iVoce_Meta_Field $field
+	 * @param integer $post_id
+	 */
+	public static function render_clone_field_js( $field, $post_id ) {
+		?>
+		<script type="application/javascript">
+			if (typeof window.vpm_clone_field === 'undefined') {
+				window.vpm_clone_field = function(addButton) {
+					var $addButton = jQuery(addButton),
+						wrapperId = $addButton.data('wrapper'),
+						template = jQuery('#'+wrapperId).clone(),
+						multiple_index = +$addButton.data('multiple_index'),
+						del_button;
+
+					$addButton.attr('data-multiple_index', multiple_index + 1).data('multiple_index', multiple_index + 1);
+
+					template.attr('id', wrapperId+'-'+multiple_index)
+						.attr('data-multiple_index', multiple_index).data('multiple_index', multiple_index)
+						.removeClass('hidden');
+
+					del_button = jQuery('.vpm_multiple-delete').first().clone()
+						.attr('data-wrapper', wrapperId).data('wrapper', wrapperId)
+						.attr('data-multiple_index', multiple_index).data('multiple_index', multiple_index);
+
+					$addButton.before(del_button).before(template);
+
+					jQuery.ajax({
+						dataType: 'html',
+						async: false,
+						type: 'POST',
+						url: ajaxurl,
+						data: {
+							action: 'vpm_add_fieldset',
+							post_id: <?php echo esc_js( $post_id ); ?>,
+							group_id: $addButton.data('group'),
+							field_id: $addButton.data('field'),
+							index: multiple_index
+						},
+						success: function (resp) {
+							if (resp) {
+								var index_counter = jQuery('[name="'+$addButton.data('group')+'__'+$addButton.data('field')+'--index"]');
+								jQuery('#'+wrapperId+'-'+multiple_index+' .vpm_fieldset_fields').html(resp);
+								index_counter.val(+index_counter.val()+1);
+							}
+						}
+					});
+				};
+			}
+		</script>
+		<?php
 	}
 
 }
 
+Voce_Meta_Fieldset::init();
 
 /**
  * Class Voce_Meta_Field
@@ -656,8 +955,8 @@ class Voce_Meta_Field implements iVoce_Meta_Field {
 			'description'                 => '',
 
 			'multiple'                    => false,
-			'add_button_callback'         => array( __CLASS__, 'render_multiple_add' ),
-			'delete_button_callback'      => array( __CLASS__, 'render_multiple_delete' ),
+			'add_button_callback'         => array( __CLASS__, 'render_add_button' ),
+			'delete_button_callback'      => array( __CLASS__, 'render_delete_button' ),
 			'clone_template_callback'     => '',
 			'clone_js'                    => 'vpm_clone_field',
 			'clone_js_callback'           => array( __CLASS__, 'render_clone_field_js' ),
@@ -688,7 +987,7 @@ class Voce_Meta_Field implements iVoce_Meta_Field {
 	 * @return array Returns array of values if multiple, single value in array otherwise. Returns default in array if no values at all.
 	 */
 	public function get_values( $post_id ) {
-		$values = get_post_meta( $post_id, $this->get_input_id() );
+		$values = get_post_meta( $post_id, $this->get_meta_key() );
 		if ( empty( $values ) ) {
 			return array( $this->default_value );
 		}
@@ -704,10 +1003,115 @@ class Voce_Meta_Field implements iVoce_Meta_Field {
 	 * @return integer Returns number of values saved for meta
 	 */
 	public function get_count( $post_id ) {
-		$key = sprintf( "{$this->group->id}_%s{$this->id}", $this->fieldset ? "{$this->fieldset->id}_" : '' );
-		$values = get_post_meta( $post_id, $key );
+		$values = get_post_meta( $post_id, $this->get_meta_key() );
 
 		return count( $values );
+	}
+
+	/**
+	 * Returns field name group for the form
+	 *
+	 * @return string Returns name group for form element.
+	 */
+	public function get_name_group(){
+		$group_id = $this->group->id;
+		if ( $this->fieldset ) {
+			$index = (int)$this->fieldset->index;
+			$group_id = "{$this->group->id}__{$this->fieldset->id}-{$index}";
+		}
+
+		return $group_id;
+	}
+
+	/**
+	 * Returns field name for the form
+	 *
+	 * @return string Returns name for form element.
+	 */
+	public function get_name( $index = '' ){
+		return $this->get_name_group() . "[{$this->id}][{$index}]";
+	}
+
+	/**
+	 * Returns meta key the values are saved under
+	 *
+	 * @return string Returns meta key for saving/retrieving meta
+	 */
+	public function get_meta_key(){
+		$group_id = $this->group->id;
+		if ( $this->fieldset ) {
+			$group_id = "{$this->group->id}__{$this->fieldset->id}-{$this->fieldset->index}_";
+		}
+
+		return "{$group_id}_{$this->id}";
+	}
+
+	/**
+	 * Returns field unique input id
+	 *
+	 * @return string Returns input id used on the form element
+	 */
+	public function get_input_id( $index = '' ){
+		$group_id = $this->group->id;
+		if ( $this->fieldset ) {
+			$fieldset_index = (int)$this->fieldset->index;
+			$group_id = "{$this->group->id}__{$this->fieldset->id}-{$fieldset_index}_";
+		}
+
+		return "{$group_id}_{$this->id}" . ( $index ? "-{$index}" : '' );
+	}
+
+	/**
+	 * Returns field wrapper id
+	 *
+	 * @return string Returns id used on the form element wrapper
+	 */
+	public function get_wrapper_id( $index = '' ){
+		return "vpm_field-" . $this->get_input_id( $index );
+	}
+
+	/**
+	 * @method get_label
+	 *
+	 * @param iVoce_Meta_Field $field
+	 *
+	 * @return string
+	 */
+	public static function get_label( $field ) {
+		return ( empty( $field->label ) ? '' : sprintf( '<label for="%s">%s:</label>', esc_attr( $field->get_input_id( $field->index ) ), wp_kses( $field->label, Voce_Meta_API::GetInstance()->label_allowed_html ) ) );
+	}
+
+	/**
+	 * Output HTML from application callback or user defined callback
+	 *
+	 * @param integer $post_id
+	 */
+	public function display_field( $post_id ) {
+		$values = $this->get_values( $post_id );
+		if ( $this->multiple && is_callable( $this->clone_template_callback ) && is_callable( $this->add_button_callback ) && is_callable( $this->delete_button_callback ) ) {
+			call_user_func( $this->clone_template_callback, $this, '', $post_id );
+			if ( is_callable( $this->clone_js_callback ) ) {
+				call_user_func( $this->clone_js_callback, $this, $post_id );
+			}
+			$this->index = 1;
+		}
+
+		foreach ( $values as $value ) {
+			if ( intval( $this->index ) ) {
+				call_user_func( $this->delete_button_callback, $this, $post_id );
+			}
+			foreach ( $this->display_callbacks as $callback ) {
+				if ( is_callable( $callback ) ) {
+					call_user_func( $callback, $this, $value, $post_id );
+				}
+			}
+			if ( intval( $this->index ) ) {
+				$this->index++;
+			}
+		}
+		if ( intval( $this->index ) ) {
+			call_user_func( $this->add_button_callback, $this, $post_id );
+		}
 	}
 
 	/**
@@ -716,8 +1120,7 @@ class Voce_Meta_Field implements iVoce_Meta_Field {
 	 * @param type $post_id
 	 */
 	public function update_field( $post_id ) {
-		$group_id = ( $this->fieldset ? "{$this->group->id}_{$this->fieldset->id}" : $this->group->id );
-		$field_id = $this->get_input_id();
+		$group_id = $this->get_name_group();
 		$old_values = $this->get_values( $post_id );
 		$new_values = array();
 
@@ -737,111 +1140,53 @@ class Voce_Meta_Field implements iVoce_Meta_Field {
 			}
 		}
 
-		delete_post_meta( $post_id, $field_id );
+		$this->delete_existing_meta( $post_id );
+
+		$field_id = $this->get_meta_key();
+		$meta_ids = array();
 		foreach ( $new_values as $value ) {
 			if ( $value || $value != $this->default_value ) {
-				add_post_meta( $post_id, $field_id, $value );
+				$meta_ids[] = add_post_meta( $post_id, $field_id, $value );
 			}
 		}
+		return $meta_ids;
 	}
 
 	/**
-	 * Output HTML from application callback or user defined callback
-	 *
-	 * @param integer $post_id
-	 */
-	public function display_field( $post_id ) {
-		$values = $this->get_values( $post_id );
-		if ( $this->multiple && is_callable( $this->clone_template_callback ) && is_callable( $this->add_button_callback ) && is_callable( $this->delete_button_callback ) ) {
-			call_user_func( $this->clone_template_callback, $this, '', $post_id );
-			if ( is_callable( $this->clone_js_callback ) ) {
-				call_user_func( $this->clone_js_callback, $this, $post_id );
-			}
-			$this->index = 1;
-		}
-		foreach ( $this->display_callbacks as $callback ) {
-			if ( is_callable( $callback ) ) {
-				foreach ( $values as $value ) {
-					if ( intval( $this->index ) ) {
-						call_user_func( $this->delete_button_callback, $this, $post_id );
-					}
-					call_user_func( $callback, $this, $value, $post_id );
-					if ( intval( $this->index ) ) {
-						$this->index++;
-					}
-				}
-			}
-		}
-		if ( intval( $this->index ) ) {
-			call_user_func( $this->add_button_callback, $this, $post_id );
-		}
-	}
-
-	/**
-	 * Returns field name
-	 *
-	 * @return string Returns name for form element.
-	 */
-	public function get_name( $index = '' ){
-		$group_id = ( $this->fieldset ? "{$this->group->id}_{$this->fieldset->id}" : $this->group->id );
-		return "{$group_id}[{$this->id}][{$index}]";
-	}
-
-	/**
-	 * Returns field input id
-	 *
-	 * @return string Returns input id used on the form element
-	 */
-	public function get_input_id( $index = '', $separator = '-' ){
-		$group_id = ( $this->fieldset ? "{$this->group->id}_{$this->fieldset->id}" : $this->group->id );
-		return "{$group_id}_{$this->id}" . ( $separator && $index ? $separator . $index : '' );
-	}
-
-	/**
-	 * Returns field wrapper id
-	 *
-	 * @return string Returns id used on the form element wrapper
-	 */
-	public function get_wrapper_id( $index = '', $separator = '-'  ){
-		return "vpm_field-" . $this->get_input_id( $index, $separator );
-	}
-
-	/**
-	 * @method get_label
-	 *
-	 * @param iVoce_Meta_Field $field
-	 *
-	 * @return string
-	 */
-	public static function get_label( $field ) {
-		return ( empty( $field->label ) ? '' : sprintf( '<label for="%s">%s:</label>', esc_attr( $field->get_input_id( $field->index ) ), wp_kses( $field->label, Voce_Meta_API::GetInstance()->label_allowed_html ) ) );
-	}
-
-	/**
-	 * @method render_multiple_add
+	 * @method delete_existing_meta
 	 *
 	 * @param iVoce_Meta_Field $field
 	 * @param integer $post_id
 	 */
-	public static function render_multiple_add( $field, $post_id ) {
+	public function delete_existing_meta( $post_id ) {
+		delete_post_meta( $post_id, $this->get_meta_key() );
+	}
+
+	/**
+	 * @method render_add_button
+	 *
+	 * @param iVoce_Meta_Field $field
+	 * @param integer $post_id
+	 */
+	public static function render_add_button( $field, $post_id ) {
 		$class = ( intval( $field->multiple ) >= 2 && intval( $field->multiple ) <= $field->get_count( $post_id ) ? 'disabled' : '' );
 		printf( '<span data-wrapper="%s" data-id="%s" data-clone_js="%s" data-multiple_index="%d" data-multiple_max="%d" class="vpm_multiple-add %s dashicons dashicons-plus-alt">Add</span>',
 			esc_attr( $field->get_wrapper_id() ),
 			esc_attr( $field->get_input_id() ),
-			$field->clone_js,
+			esc_attr( $field->clone_js ),
 			$field->index,
 			$field->multiple,
-			$class
+			esc_attr( $class )
 		);
 	}
 
 	/**
-	 * @method render_multiple_delete
+	 * @method render_delete_button
 	 *
 	 * @param iVoce_Meta_Field $field
 	 * @param integer $post_id
 	 */
-	public static function render_multiple_delete( $field, $post_id ) {
+	public static function render_delete_button( $field, $post_id ) {
 		printf( '<span data-wrapper="%s" data-multiple_index="%d" class="vpm_multiple-delete dashicons dashicons-trash"></span>',
 			esc_attr( $field->get_wrapper_id() ),
 			$field->index
@@ -895,6 +1240,11 @@ class Voce_Meta_Field implements iVoce_Meta_Field {
 		<?php
 	}
 
+}
+
+
+class Voce_Meta_Field_Text extends Voce_Meta_Field {
+
 	/**
 	 * @method display_text
 	 *
@@ -904,48 +1254,10 @@ class Voce_Meta_Field implements iVoce_Meta_Field {
 	 */
 	public static function display_text( $field, $value, $post_id ) {
 		?>
-		<p id="<?php echo esc_attr( $field->get_wrapper_id( $field->index ) ); ?>" class="<?php echo esc_attr( $field->get_wrapper_id() ); ?>" data-multiple_index="<?php echo esc_attr( $field->index ); ?>">
+		<p id="<?php echo esc_attr( $field->get_wrapper_id( $field->index ) ); ?>" class="vpm_field vpm_field_text <?php echo esc_attr( $field->get_wrapper_id() ); ?>" data-multiple_index="<?php echo esc_attr( $field->index ); ?>">
 			<?php echo self::get_label( $field ); ?>
 			<input class="widefat" type="text" id="<?php echo esc_attr( $field->get_input_id( $field->index ) ); ?>" name="<?php echo esc_attr( $field->get_name() ); ?>" value="<?php echo esc_attr( $value ); ?>"  />
 			<?php echo ! empty( $field->description ) ? ('<br><span class="description">' . wp_kses( $field->description, Voce_Meta_API::GetInstance()->description_allowed_html ) . '</span>') : ''; ?>
-		</p>
-		<?php
-	}
-
-	/**
-	 * @method display_textarea
-	 *
-	 * @param iVoce_Meta_Field $field
-	 * @param type $current_value
-	 * @param integer $post_id
-	 */
-	public static function display_textarea( $field, $current_value, $post_id ) {
-		?>
-		<p id="<?php echo esc_attr( $field->get_wrapper_id( $field->index ) ); ?>" class="<?php echo esc_attr( $field->get_wrapper_id() ); ?>" data-multiple_index="<?php echo esc_attr( $field->index ); ?>">
-			<?php echo self::get_label( $field ); ?>
-			<textarea class="widefat" id="<?php echo esc_attr( $field->get_input_id( $field->index ) ); ?>" name="<?php echo esc_attr( $field->get_name() ); ?>"><?php echo esc_attr( $current_value ); ?></textarea>
-			<?php echo !empty( $field->description ) ? ('<br><span class="description">' . wp_kses( $field->description, Voce_Meta_API::GetInstance()->description_allowed_html ) . '</span>') : ''; ?>
-		</p>
-		<?php
-	}
-
-	/**
-	 * @method display_dropdown
-	 *
-	 * @param iVoce_Meta_Field $field
-	 * @param type $current_value
-	 * @param integer $post_id
-	 */
-	public static function display_dropdown( $field, $current_value, $post_id ) {
-		?>
-		<p id="<?php echo esc_attr( $field->get_wrapper_id( $field->index ) ); ?>" class="<?php echo esc_attr( $field->get_wrapper_id() ); ?>" data-multiple_index="<?php echo esc_attr( $field->index ); ?>">
-			<?php echo self::get_label( $field ); ?>
-			<select id="<?php echo esc_attr( $field->get_input_id( $field->index ) ); ?>" name="<?php echo esc_attr( $field->get_name() ); ?>">
-				<?php foreach ($field->args['options'] as $key => $value): ?>
-					<option value="<?php echo esc_attr( $key ); ?>" <?php selected( $current_value, $key ); ?>><?php echo esc_html( $value ); ?></option>
-				<?php endforeach; ?>
-			</select>
-			<?php echo !empty( $field->description ) ? ('<br><span class="description">' . wp_kses( $field->description, Voce_Meta_API::GetInstance()->description_allowed_html ) . '</span>') : ''; ?>
 		</p>
 		<?php
 	}
@@ -965,6 +1277,52 @@ class Voce_Meta_Field implements iVoce_Meta_Field {
 			return $new_value;
 		}
 		return 0;
+	}
+}
+
+
+class Voce_Meta_Field_Textarea extends Voce_Meta_Field {
+
+	/**
+	 * @method display_textarea
+	 *
+	 * @param iVoce_Meta_Field $field
+	 * @param type $current_value
+	 * @param integer $post_id
+	 */
+	public static function display_textarea( $field, $current_value, $post_id ) {
+		?>
+		<p id="<?php echo esc_attr( $field->get_wrapper_id( $field->index ) ); ?>" class="vpm_field vpm_field_textarea <?php echo esc_attr( $field->get_wrapper_id() ); ?>" data-multiple_index="<?php echo esc_attr( $field->index ); ?>">
+			<?php echo self::get_label( $field ); ?>
+			<textarea class="widefat" id="<?php echo esc_attr( $field->get_input_id( $field->index ) ); ?>" name="<?php echo esc_attr( $field->get_name() ); ?>"><?php echo esc_attr( $current_value ); ?></textarea>
+			<?php echo !empty( $field->description ) ? ('<br><span class="description">' . wp_kses( $field->description, Voce_Meta_API::GetInstance()->description_allowed_html ) . '</span>') : ''; ?>
+		</p>
+		<?php
+	}
+}
+
+
+class Voce_Meta_Field_Dropdown extends Voce_Meta_Field {
+
+	/**
+	 * @method display_dropdown
+	 *
+	 * @param iVoce_Meta_Field $field
+	 * @param type $current_value
+	 * @param integer $post_id
+	 */
+	public static function display_dropdown( $field, $current_value, $post_id ) {
+		?>
+		<p id="<?php echo esc_attr( $field->get_wrapper_id( $field->index ) ); ?>" class="vpm_field vpm_field_dropdown <?php echo esc_attr( $field->get_wrapper_id() ); ?>" data-multiple_index="<?php echo esc_attr( $field->index ); ?>">
+			<?php echo self::get_label( $field ); ?>
+			<select id="<?php echo esc_attr( $field->get_input_id( $field->index ) ); ?>" name="<?php echo esc_attr( $field->get_name() ); ?>">
+				<?php foreach ($field->args['options'] as $key => $value): ?>
+					<option value="<?php echo esc_attr( $key ); ?>" <?php selected( $current_value, $key ); ?>><?php echo esc_html( $value ); ?></option>
+				<?php endforeach; ?>
+			</select>
+			<?php echo !empty( $field->description ) ? ('<br><span class="description">' . wp_kses( $field->description, Voce_Meta_API::GetInstance()->description_allowed_html ) . '</span>') : ''; ?>
+		</p>
+		<?php
 	}
 
 	/**
@@ -987,7 +1345,6 @@ class Voce_Meta_Field implements iVoce_Meta_Field {
 
 		return false;
 	}
-
 }
 
 
@@ -1089,8 +1446,7 @@ class Voce_Meta_Field_Checkbox extends Voce_Meta_Field {
 	 * @param type $post_id
 	 */
 	public function update_field( $post_id ) {
-		$group_id = ( $this->fieldset ? "{$this->group->id}_{$this->fieldset->id}" : $this->group->id );
-		$field_id = $this->get_input_id();
+		$group_id = ( $this->fieldset ? "{$this->group->id}__{$this->fieldset->id}" : $this->group->id );
 		$old_values = $this->get_values( $post_id );
 		$new_values = array();
 
@@ -1106,13 +1462,17 @@ class Voce_Meta_Field_Checkbox extends Voce_Meta_Field {
 			}
 		}
 
-		delete_post_meta( $post_id, $field_id );
+		$this->delete_existing_meta( $post_id );
 		if ( empty( $new_values ) ) {
 			return;
 		}
+
+		$field_id = $this->get_meta_key();
+		$new_ids = array();
 		foreach ( $new_values as $value ) {
-			add_post_meta( $post_id, $field_id, $value );
+			$new_ids[] = add_post_meta( $post_id, $field_id, $value );
 		}
+		return $new_ids;
 
 	}
 
@@ -1225,7 +1585,7 @@ class Voce_Meta_Field_Checkbox extends Voce_Meta_Field {
 	public static function display_checkbox( $field, $current_value, $post_id ) {
 		$val = ( ! empty( $field->args['value'] ) ? $field->args['value'] : 'on' );
 		?>
-		<p id="<?php echo esc_attr( $field->get_wrapper_id( $field->index ) ); ?>" class="<?php echo esc_attr( $field->get_wrapper_id() ); ?> " data-multiple_index="<?php echo esc_attr( $field->index ); ?>">
+		<p id="<?php echo esc_attr( $field->get_wrapper_id( $field->index ) ); ?>" class="vpm_field vpm_field_checkbox <?php echo esc_attr( $field->get_wrapper_id() ); ?> " data-multiple_index="<?php echo esc_attr( $field->index ); ?>">
 			<?php echo self::get_label( $field ); ?>
 			<?php if ( empty( $field->args['options'] ) ): ?>
 				<?php $checked = checked( in_array( $val, $current_value ), true, false ); ?>
@@ -1252,7 +1612,7 @@ class Voce_Meta_Field_Checkbox extends Voce_Meta_Field {
 	 */
 	public static function display_checkbox_template( $field, $current_value, $post_id ) {
 		?>
-		<p id="<?php echo esc_attr( $field->get_wrapper_id() ); ?>" class="<?php echo esc_attr( $field->get_wrapper_id() ); ?> ">
+		<p id="<?php echo esc_attr( $field->get_wrapper_id() ); ?>" class="vpm_field vpm_field_checkbox <?php echo esc_attr( $field->get_wrapper_id() ); ?> ">
 			<?php echo self::get_label( $field ); ?>
 			<?php if ( empty( $field->args['options'] ) ): ?>
 				<input type="checkbox" id="<?php echo esc_attr( $field->get_input_id() ); ?>" name="<?php echo esc_attr( $field->get_name() ) ?>" />
@@ -1361,7 +1721,7 @@ class Voce_Meta_Field_Radio extends Voce_Meta_Field {
 	public static function display_radio( $field, $current_value, $post_id ) {
 		$item_format = ! empty( $field->args['item_format'] ) && in_array( $field->args['item_format'], array( 'inline', 'block' ) ) ? $field->args['item_format'] : 'block';
 		?>
-		<p id="<?php echo esc_attr( $field->get_wrapper_id( $field->index ) ); ?>" class="<?php echo esc_attr( $field->get_wrapper_id() ); ?>" data-multiple_index="<?php echo esc_attr( $field->index ); ?>">
+		<p id="<?php echo esc_attr( $field->get_wrapper_id( $field->index ) ); ?>" class="vpm_field vpm_field_radio <?php echo esc_attr( $field->get_wrapper_id() ); ?>" data-multiple_index="<?php echo esc_attr( $field->index ); ?>">
 			<?php echo self::get_label( $field ); ?>
 			<?php foreach ($field->args['options'] as $key => $value): ?>
 				<label style="display:<?php echo $item_format; ?>" class="voce-meta-radio">
@@ -1384,7 +1744,7 @@ class Voce_Meta_Field_Radio extends Voce_Meta_Field {
 		$item_format = ! empty( $field->args['item_format'] ) && in_array( $field->args['item_format'], array( 'inline', 'block' ) ) ? $field->args['item_format'] : 'block';
 		?>
 		<input type="hidden" name="<?php echo esc_attr( $field->get_name() ); ?>" />
-		<p id="<?php echo esc_attr( $field->get_wrapper_id() ); ?>" class="<?php echo esc_attr( $field->get_wrapper_id() ); ?>">
+		<p id="<?php echo esc_attr( $field->get_wrapper_id() ); ?>" class="vpm_field vpm_field_radio <?php echo esc_attr( $field->get_wrapper_id() ); ?>">
 			<?php echo self::get_label( $field ); ?>
 			<?php foreach ($field->args['options'] as $key => $value): ?>
 				<label style="display:<?php echo $item_format; ?>" class="voce-meta-radio">
@@ -1411,6 +1771,21 @@ class Voce_Meta_Field_WP_Editor extends Voce_Meta_Field {
 			wp_editor( '', $field_id, $args );
 			exit;
 		} );
+	}
+
+	/**
+	 * Returns field unique input id
+	 *
+	 * @return string Returns input id used on the form element
+	 */
+	public function get_input_id( $index = '' ){
+		$group_id = $this->group->id;
+		if ( $this->fieldset ) {
+			$index = (int)$this->fieldset->index;
+			$group_id = "{$this->group->id}__{$this->fieldset->id}-{$index}_";
+		}
+
+		return "{$group_id}_{$this->id}" . ( $index ? "_{$index}" : '' );
 	}
 
 	/**
@@ -1492,13 +1867,12 @@ class Voce_Meta_Field_WP_Editor extends Voce_Meta_Field {
 	public static function display_wp_editor( $field, $current_value, $post_id ) {
 		$field->args['wp_editor_args']['textarea_name'] = $field->get_name();
 		?>
-		<div id="<?php echo esc_attr( $field->get_wrapper_id( $field->index ) ); ?>" class="<?php echo esc_attr( $field->get_wrapper_id() ); ?> voce-post-meta-wp-editor" data-multiple_index="<?php echo esc_attr( $field->index ); ?>">
-			<?php echo self::get_label($field);
-			echo '<div class="wp-editor-wrapper">';
-			wp_editor( $current_value, $field->get_input_id( $field->index, '_' ), $field->args['wp_editor_args'] );
-			echo '</div>';
-			echo !empty( $field->description ) ? ('<br><span class="description">' . wp_kses( $field->description, Voce_Meta_API::GetInstance()->description_allowed_html ) . '</span>') : '';
-			?>
+		<div id="<?php echo esc_attr( $field->get_wrapper_id( $field->index ) ); ?>" class="vpm_field vpm_field_wp_editor <?php echo esc_attr( $field->get_wrapper_id() ); ?>" data-multiple_index="<?php echo esc_attr( $field->index ); ?>">
+			<?php echo self::get_label($field); ?>
+			<div class="wp-editor-wrapper">
+				<?php wp_editor( $current_value, $field->get_input_id( $field->index ), $field->args['wp_editor_args'] ); ?>
+			</div>
+			<?php echo !empty( $field->description ) ? ('<br><span class="description">' . wp_kses( $field->description, Voce_Meta_API::GetInstance()->description_allowed_html ) . '</span>') : ''; ?>
 		</div>
 		<?php
 	}
@@ -1514,18 +1888,17 @@ class Voce_Meta_Field_WP_Editor extends Voce_Meta_Field {
 		$field->args['wp_editor_args']['textarea_name'] = $field->get_name();
 		?>
 		<input type="hidden" name="<?php echo esc_attr( $field->get_name() ); ?>" />
-		<div id="<?php echo esc_attr( $field->get_wrapper_id() ); ?>" class="<?php echo esc_attr( $field->get_wrapper_id() ); ?> voce-post-meta-wp-editor">
-			<?php echo self::get_label($field);
-			echo '<div class="wp-editor-wrapper"></div>';
-			echo !empty( $field->description ) ? ('<br><span class="description">' . wp_kses( $field->description, Voce_Meta_API::GetInstance()->description_allowed_html ) . '</span>') : '';
-			?>
+		<div id="<?php echo esc_attr( $field->get_wrapper_id() ); ?>" class="vpm_field vpm_field_wp_editor <?php echo esc_attr( $field->get_wrapper_id() ); ?>">
+			<?php echo self::get_label($field); ?>
+			<div class="wp-editor-wrapper"></div>
+			<?php echo !empty( $field->description ) ? ('<br><span class="description">' . wp_kses( $field->description, Voce_Meta_API::GetInstance()->description_allowed_html ) . '</span>') : ''; ?>
 		</div>
 		<script type="application/javascript">
 			var vpm_clone_wp_editor_args = vpm_clone_wp_editor_args || [];
 
 			vpm_clone_wp_editor_args['<?php echo esc_js( $field->get_input_id() ); ?>'] = <?php echo json_encode( $field->args['wp_editor_args'] ); ?>
 		</script>
-	<?php
+		<?php
 	}
 
 	/**
