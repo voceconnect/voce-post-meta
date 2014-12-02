@@ -163,7 +163,7 @@ class Voce_Meta_API {
 	 * @method get_meta_value
 	 *
 	 * @param integer $post_id
-	 * @param string $group
+	 * @param string|array $group
 	 * @param string $field
 	 *
 	 * @return boolean
@@ -174,6 +174,7 @@ class Voce_Meta_API {
 			$group = reset( $group );
 		}
 		if ( isset( $this->groups[ $group ] ) ) {
+			// standard field
 			if ( empty( $fieldset ) && isset( $this->groups[ $group ]->fields[ $field ] ) ) {
 				$values = $this->groups[ $group ]->fields[ $field ]->get_values( $post_id );
 				if ( empty( $this->groups[ $group ]->fields[ $field ]->multiple ) && $single ) {
@@ -182,13 +183,25 @@ class Voce_Meta_API {
 
 				return $values;
 			}
-			if ( ! empty( $this->groups[ $group ]->fields[ $fieldset ]->fields[ $field ] ) ) {
-				$values = $this->groups[ $group ]->fields[ $fieldset ]->fields[ $field ]->get_values( $post_id );
-				if ( empty( $this->groups[ $group ]->fields[ $fieldset ]->fields[ $field ]->multiple ) && $single ) {
-					return reset( $values );
-				}
 
-				return $values;
+			// fieldset
+			if ( ! empty( $this->groups[ $group ]->fields[ $fieldset ] ) ) {
+				$fieldset_values = $this->groups[ $group ]->fields[ $fieldset ]->get_values( $post_id );
+
+				// individual field
+				if ( $field ) {
+					if ( ! empty( $this->groups[ $group ]->fields[ $fieldset ]->fields[ $field ] ) ) {
+						if ( ! empty( $fieldset_values ) ) {
+							return $fieldset_values[0][ $field ];
+						}
+
+						return $this->groups[ $group ]->fields[ $fieldset ]->fields[ $field ]->default_value;
+					}
+				}
+				// full fieldset
+				else if ( ! empty( $fieldset_values ) ) {
+					return ( $single ? $fieldset_values[0] : $fieldset_values );
+				}
 			}
 		}
 
@@ -629,10 +642,25 @@ class Voce_Meta_Fieldset implements iVoce_Meta_Field {
 	 * @return array Returns array of values if multiple, single value in array otherwise. Returns default in array if no values at all.
 	 */
 	public function get_values( $post_id ) {
-		$mapping = get_post_meta( $post_id, $this->get_mapping_key() );
+		$mapping = $this->get_mapping_data( $post_id );
 
-		if ( empty( $values ) ) {
-			return array( $this->default_value );
+		if ( empty( $mapping ) ) {
+			return array();
+		}
+
+		$values = array();
+		foreach ( $mapping as $fieldset ) {
+			$fieldset_values = array();
+			foreach ( $fieldset as $field_id => $field_mid ) {
+				if ( ! empty( $field_mid ) ) {
+					$value = get_metadata_by_mid( 'post', $field_mid[0] )->meta_value;
+				}
+				else {
+					$value = $this->fields[ $field_id ]->default_value;
+				}
+				$fieldset_values[ $field_id ] =  $value;
+			}
+			$values[] = $fieldset_values;
 		}
 
 		return $values;
@@ -675,7 +703,7 @@ class Voce_Meta_Fieldset implements iVoce_Meta_Field {
 	 * @return array Returns the mapping array for the fields in the fieldset
 	 */
 	public function get_mapping_data( $post_id ){
-		return (array)get_post_meta( $post_id, $this->get_mapping_key(), true );
+		return array_filter( (array)get_post_meta( $post_id, $this->get_mapping_key(), true ) );
 	}
 
 	/**
@@ -786,17 +814,25 @@ class Voce_Meta_Fieldset implements iVoce_Meta_Field {
 
 		$index_counter = ( ! empty( $_POST[ $this->get_index_count_name() ] ) ? $_POST[ $this->get_index_count_name() ] : 1 );
 		$field_updates = array();
+		$fields_exist = 0;
 		for ( $index = 1; $index <= $index_counter; $index++ ) {
 			if ( empty( $_POST[ $this->get_fieldset_id() . "-{$index}" ] ) ) {
 				continue;
 			}
 			$this->index = $index;
 			foreach ( $this->fields as $key => $field ) {
-				$field_updates[ $index ][ $field->id ] = $field->update_field( $post_id );
+				$field_mid = $field->update_field( $post_id );
+				$field_updates[ $index ][ $field->id ] = $field_mid;
+
+				$fields_exist += (int)$field_mid;
 			}
 		}
 
-		update_post_meta( $post_id, $this->get_mapping_key( $post_id ), $field_updates );
+		$mapping_key = $this->get_mapping_key( $post_id );
+		delete_post_meta( $post_id, $mapping_key );
+		if ( $fields_exist ) {
+			update_post_meta( $post_id, $mapping_key, $field_updates );
+		}
 	}
 
 	/**
