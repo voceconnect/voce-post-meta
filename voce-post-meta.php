@@ -815,16 +815,31 @@ class Voce_Meta_Fieldset implements iVoce_Meta_Field {
 		$index_counter = ( ! empty( $_POST[ $this->get_index_count_name() ] ) ? $_POST[ $this->get_index_count_name() ] : 1 );
 		$field_updates = array();
 		$fields_exist = 0;
+		$data_cleared = array();
 		for ( $index = 1; $index <= $index_counter; $index++ ) {
 			if ( empty( $_POST[ $this->get_fieldset_id() . "-{$index}" ] ) ) {
 				continue;
 			}
 			$this->index = $index;
 			foreach ( $this->fields as $key => $field ) {
+				// save new field and store mid for mapping
 				$field_mid = $field->update_field( $post_id );
 				$field_updates[ $index ][ $field->id ] = $field_mid;
 
+				// only save mapping if data was saved
 				$fields_exist += (int)$field_mid;
+
+				// save all values under one key for meta_query
+				$this->index = 0;
+				if ( ! in_array( $field->id, $data_cleared ) ) {
+					$field->delete_existing_meta( $post_id );
+					$data_cleared[] = $field->id;
+				}
+
+				if ( count( $field_mid ) ) {
+					add_post_meta( $post_id, $field->get_meta_key(), get_metadata_by_mid( 'post', $field_mid[0] )->meta_value );
+				}
+				$this->index = $index;
 			}
 		}
 
