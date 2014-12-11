@@ -90,7 +90,6 @@ class Voce_Meta_API {
 				'display_callbacks'       => array( array( 'Voce_Meta_Field_Checkbox', 'display_checkbox' ) ),
 				'clone_template_callback' => array( 'Voce_Meta_Field_Checkbox', 'display_checkbox_template' ),
 				'clone_js_callback'       => array( 'Voce_Meta_Field_Checkbox', 'render_clone_checkbox_js' ),
-				'clone_js'                => 'vpm_clone_checkbox',
 			),
 		);
 		$mapping['radio'] = array(
@@ -99,7 +98,6 @@ class Voce_Meta_API {
 				'display_callbacks'       => array( array( 'Voce_Meta_Field_Radio', 'display_radio' ) ),
 				'clone_template_callback' => array( 'Voce_Meta_Field_Radio', 'display_radio_template' ),
 				'clone_js_callback'       => array( 'Voce_Meta_Field_Radio', 'render_clone_radio_js' ),
-				'clone_js'                => 'vpm_clone_radio',
 			),
 		);
 		$mapping['wp_editor'] = array(
@@ -109,7 +107,6 @@ class Voce_Meta_API {
 				'sanitize_callbacks'      => array( array( 'Voce_Meta_Field_WP_Editor', 'sanitize_wp_editor' ) ),
 				'clone_template_callback' => array( 'Voce_Meta_Field_WP_Editor', 'display_wp_editor_template' ),
 				'clone_js_callback'       => array( 'Voce_Meta_Field_WP_Editor', 'render_clone_wp_editor_js' ),
-				'clone_js'                => 'vpm_clone_wp_editor',
 				'wp_editor_args'          => array(
 					'textarea_rows' => 10
 				),
@@ -565,6 +562,11 @@ class Voce_Meta_Fieldset implements iVoce_Meta_Field {
 	 * @param integer $post_id
 	 */
 	public function display_field( $post_id ) {
+		printf( '<div id="%s-wrapper" class="vpm_wrapper %s">',
+			$this->get_wrapper_id(),
+			( $this->multiple ? 'multiple' : '' )
+		);
+
 		$mapping = $this->get_mapping_data( $post_id );
 		if ( $this->multiple && is_callable( $this->clone_template_callback ) && is_callable( $this->add_button_callback ) && is_callable( $this->delete_button_callback ) ) {
 			call_user_func( $this->clone_template_callback, $this, 0 );
@@ -581,11 +583,11 @@ class Voce_Meta_Fieldset implements iVoce_Meta_Field {
 			$this->index = $index;
 			foreach ( $this->display_callbacks as $callback ) {
 				if ( is_callable( $callback ) ) {
-					if ( $this->multiple ) {
-						call_user_func( $this->delete_button_callback, $this, $post_id );
-					}
 					call_user_func( $callback, $this, $post_id );
 				}
+			}
+			if ( ! $this->multiple ) {
+				break;
 			}
 		}
 		$this->index++;
@@ -594,6 +596,7 @@ class Voce_Meta_Fieldset implements iVoce_Meta_Field {
 		}
 		?>
 		<input type="hidden" name="<?php echo $this->get_index_count_name(); ?>" value="<?php echo $this->index - 1; ?>">
+		</div>
 		<?php
 	}
 
@@ -615,6 +618,7 @@ class Voce_Meta_Fieldset implements iVoce_Meta_Field {
 			$field->display_field( $post_id );
 		}
 		echo '</div>';
+		echo $fieldset->render_controls( $fieldset, $post_id );
 		echo '</fieldset>';
 	}
 
@@ -631,6 +635,7 @@ class Voce_Meta_Fieldset implements iVoce_Meta_Field {
 		echo $fieldset->get_legend();
 		echo ( ! empty( $fieldset->description ) ? '<p class="description">' . wp_kses( $fieldset->description, Voce_Meta_API::GetInstance()->description_allowed_html ) . '</p>' : '' );
 		echo '<div class="vpm_fieldset_fields"></div>';
+		echo $fieldset->render_controls( $fieldset, $post_id );
 		echo '</fieldset>';
 	}
 
@@ -805,8 +810,10 @@ class Voce_Meta_Fieldset implements iVoce_Meta_Field {
 		foreach ( $current_data as $field_data ) {
 			if ( is_array( $field_data ) && count( $field_data ) ) {
 				foreach ( $field_data as $meta_ids ) {
-					foreach ( $meta_ids as $meta_id ) {
-						delete_metadata_by_mid( 'post', $meta_id );
+					if ( ! empty( $meta_id ) ) {
+						foreach ( $meta_ids as $meta_id ) {
+							delete_metadata_by_mid( 'post', $meta_id );
+						}
 					}
 				}
 			}
@@ -858,9 +865,10 @@ class Voce_Meta_Fieldset implements iVoce_Meta_Field {
 	 */
 	public static function render_add_button( $field, $post_id ) {
 		$class = ( intval( $field->multiple ) >= 2 && intval( $field->multiple ) <= $field->get_count( $post_id ) ? 'disabled' : '' );
-		printf( '<span data-wrapper="%s" data-group="%s" data-field="%s" data-clone_js="%s" data-multiple_index="%d" data-multiple_max="%d" class="vpm_multiple-add %s dashicons dashicons-plus-alt">Add</span>',
+		printf( '<span data-wrapper="%s" data-group="%s" data-id="%s" data-field="%s" data-clone_js="%s" data-multiple_index="%d" data-multiple_max="%d" class="vpm_multiple-add %s dashicons dashicons-plus-alt">Add</span>',
 			esc_attr( $field->get_wrapper_id() ),
 			esc_attr( $field->group->id ),
+			esc_attr( $field->get_fieldset_id() ),
 			esc_attr( $field->id ),
 			esc_attr( $field->clone_js ),
 			$field->index,
@@ -883,6 +891,18 @@ class Voce_Meta_Fieldset implements iVoce_Meta_Field {
 	}
 
 	/**
+	 * @method render_controls
+	 *
+	 * @param iVoce_Meta_Field $field
+	 * @param integer $post_id
+	 */
+	public static function render_controls( $field, $post_id ) {
+		if ( $field->multiple && is_callable( $field->delete_button_callback ) ) {
+			call_user_func( $field->delete_button_callback, $field, $post_id );
+		}
+	}
+
+	/**
 	 * @method render_clone_field_js
 	 *
 	 * @param iVoce_Meta_Field $field
@@ -891,48 +911,48 @@ class Voce_Meta_Fieldset implements iVoce_Meta_Field {
 	public static function render_clone_field_js( $field, $post_id ) {
 		?>
 		<script type="application/javascript">
-			if (typeof window.vpm_clone_field === 'undefined') {
-				window.vpm_clone_field = function(addButton) {
-					var $addButton = jQuery(addButton),
-						wrapperId = $addButton.data('wrapper'),
-						template = jQuery('#'+wrapperId).clone(),
-						multiple_index = +$addButton.data('multiple_index'),
-						del_button;
+			window.vpm_clone_field = window.vpm_clone_field || [];
+			window.vpm_clone_field['<?php echo esc_js( $field->get_fieldset_id() ); ?>'] = function(addButton) {
+				var $addButton = jQuery(addButton),
+					wrapperId = $addButton.data('wrapper'),
+					template = jQuery('#'+wrapperId).clone(),
+					multiple_index = +$addButton.data('multiple_index'),
+					del_button;
 
-					$addButton.attr('data-multiple_index', multiple_index + 1).data('multiple_index', multiple_index + 1);
+				$addButton.attr('data-multiple_index', multiple_index + 1).data('multiple_index', multiple_index + 1);
 
-					template.attr('id', wrapperId+'-'+multiple_index)
-						.attr('data-multiple_index', multiple_index).data('multiple_index', multiple_index)
-						.removeClass('hidden');
+				template.attr('id', wrapperId+'-'+multiple_index)
+					.attr('data-multiple_index', multiple_index).data('multiple_index', multiple_index)
+					.removeClass('hidden');
 
-					del_button = jQuery('.vpm_multiple-delete').first().clone()
-						.attr('data-wrapper', wrapperId).data('wrapper', wrapperId)
-						.attr('data-multiple_index', multiple_index).data('multiple_index', multiple_index);
+				del_button = jQuery('.vpm_multiple-delete').first().clone()
+					.attr('data-wrapper', wrapperId).data('wrapper', wrapperId)
+					.attr('data-multiple_index', multiple_index).data('multiple_index', multiple_index);
 
-					$addButton.before(del_button).before(template);
+				template.prepend(del_button);
+				$addButton.before(template);
 
-					jQuery.ajax({
-						dataType: 'html',
-						async: false,
-						type: 'POST',
-						url: ajaxurl,
-						data: {
-							action: 'vpm_add_fieldset',
-							post_id: <?php echo esc_js( $post_id ); ?>,
-							group_id: $addButton.data('group'),
-							field_id: $addButton.data('field'),
-							index: multiple_index
-						},
-						success: function (resp) {
-							if (resp) {
-								var index_counter = jQuery('[name="'+$addButton.data('group')+'__'+$addButton.data('field')+'--index"]');
-								jQuery('#'+wrapperId+'-'+multiple_index+' .vpm_fieldset_fields').html(resp);
-								index_counter.val(+index_counter.val()+1);
-							}
+				jQuery.ajax({
+					dataType: 'html',
+					async: false,
+					type: 'POST',
+					url: ajaxurl,
+					data: {
+						action: 'vpm_add_fieldset',
+						post_id: <?php echo esc_js( $post_id ); ?>,
+						group_id: $addButton.data('group'),
+						field_id: $addButton.data('field'),
+						index: multiple_index
+					},
+					success: function (resp) {
+						if (resp) {
+							var index_counter = jQuery('[name="'+$addButton.data('group')+'__'+$addButton.data('field')+'--index"]');
+							jQuery('#'+wrapperId+'-'+multiple_index+' .vpm_fieldset_fields').html(resp);
+							index_counter.val(+index_counter.val()+1);
 						}
-					});
-				};
-			}
+					}
+				});
+			};
 		</script>
 		<?php
 	}
@@ -964,6 +984,7 @@ class Voce_Meta_Field implements iVoce_Meta_Field {
 	public $multiple;
 	public $add_button_callback;
 	public $delete_button_callback;
+	public $sort_button_callback;
 	public $clone_template_callback;
 	public $clone_js;
 	public $clone_js_callback;
@@ -1008,6 +1029,7 @@ class Voce_Meta_Field implements iVoce_Meta_Field {
 			'multiple'                    => false,
 			'add_button_callback'         => array( __CLASS__, 'render_add_button' ),
 			'delete_button_callback'      => array( __CLASS__, 'render_delete_button' ),
+			'sort_button_callback'        => array( __CLASS__, 'render_sort_button' ),
 			'clone_template_callback'     => '',
 			'clone_js'                    => 'vpm_clone_field',
 			'clone_js_callback'           => array( __CLASS__, 'render_clone_field_js' ),
@@ -1024,6 +1046,7 @@ class Voce_Meta_Field implements iVoce_Meta_Field {
 		$this->multiple = ( intval( $args['multiple'] ) >= 2 ? intval( $args['multiple'] ) : (bool)$args['multiple'] );
 		$this->add_button_callback = $args['add_button_callback'];
 		$this->delete_button_callback = $args['delete_button_callback'];
+		$this->sort_button_callback = $args['sort_button_callback'];
 		$this->clone_template_callback = ( is_callable( $args['clone_template_callback'] ) ? $args['clone_template_callback'] : reset( $this->display_callbacks ) );
 		$this->clone_js = $args['clone_js'];
 		$this->clone_js_callback = $args['clone_js_callback'];
@@ -1138,6 +1161,12 @@ class Voce_Meta_Field implements iVoce_Meta_Field {
 	 * @param integer $post_id
 	 */
 	public function display_field( $post_id ) {
+		printf( '<div id="%s-wrapper" class="vpm_wrapper %s %s">',
+			$this->get_wrapper_id(),
+			( $this->sortable ? 'sortable' : '' ),
+			( $this->multiple ? 'multiple' : '' )
+		);
+
 		$values = $this->get_values( $post_id );
 		if ( $this->multiple && is_callable( $this->clone_template_callback ) && is_callable( $this->add_button_callback ) && is_callable( $this->delete_button_callback ) ) {
 			call_user_func( $this->clone_template_callback, $this, '', $post_id );
@@ -1148,9 +1177,6 @@ class Voce_Meta_Field implements iVoce_Meta_Field {
 		}
 
 		foreach ( $values as $value ) {
-			if ( intval( $this->index ) ) {
-				call_user_func( $this->delete_button_callback, $this, $post_id );
-			}
 			foreach ( $this->display_callbacks as $callback ) {
 				if ( is_callable( $callback ) ) {
 					call_user_func( $callback, $this, $value, $post_id );
@@ -1163,6 +1189,8 @@ class Voce_Meta_Field implements iVoce_Meta_Field {
 		if ( intval( $this->index ) ) {
 			call_user_func( $this->add_button_callback, $this, $post_id );
 		}
+
+		echo( '</div>' );
 	}
 
 	/**
@@ -1245,6 +1273,36 @@ class Voce_Meta_Field implements iVoce_Meta_Field {
 	}
 
 	/**
+	 * @method render_controls
+	 *
+	 * @param iVoce_Meta_Field $field
+	 * @param integer $post_id
+	 */
+	public static function render_controls( $field, $post_id ) {
+		if ( intval( $field->index ) ) {
+			if ( is_callable( $field->delete_button_callback ) ) {
+				call_user_func( $field->delete_button_callback, $field, $post_id );
+				if ( $field->sortable && is_callable( $field->sort_button_callback ) ) {
+					call_user_func( $field->sort_button_callback, $field, $post_id );
+				}
+			}
+		}
+	}
+
+	/**
+	 * @method render_sort_button
+	 *
+	 * @param iVoce_Meta_Field $field
+	 * @param integer $post_id
+	 */
+	public static function render_sort_button( $field, $post_id ) {
+		printf( '<span data-wrapper="%s" data-multiple_index="%d" class="vpm_multiple-sort dashicons dashicons-image-flip-vertical"></span>',
+			esc_attr( $field->get_wrapper_id() ),
+			$field->index
+		);
+	}
+
+	/**
 	 * @method render_clone_field_js
 	 *
 	 * @param iVoce_Meta_Field $field
@@ -1253,40 +1311,48 @@ class Voce_Meta_Field implements iVoce_Meta_Field {
 	public static function render_clone_field_js( $field, $post_id ) {
 		?>
 		<script type="application/javascript">
-			if (typeof window.vpm_clone_field === 'undefined') {
-				window.vpm_clone_field = function(addButton) {
-					var $addButton = jQuery(addButton),
-						wrapperId = $addButton.data('wrapper'),
-						elId = $addButton.data('id'),
-						template = jQuery('#' + wrapperId).clone(),
-						$elements = template.add(template.find('*')),
-						multiple_index = +$addButton.data('multiple_index'),
-						del_button;
+			window.vpm_clone_field = window.vpm_clone_field || [];
+			window.vpm_clone_field['<?php echo esc_js( $field->get_input_id() ); ?>'] = function(addButton) {
+				var $addButton = jQuery(addButton),
+					wrapperId = $addButton.data('wrapper'),
+					elId = $addButton.data('id'),
+					template = jQuery('#' + wrapperId).clone(),
+					$elements = template.add(template.find('*')),
+					multiple_index = +$addButton.data('multiple_index'),
+					del_button,
+					sort_button;
 
-					$addButton.attr('data-multiple_index', multiple_index + 1).data('multiple_index', multiple_index + 1);
+				$addButton.attr('data-multiple_index', multiple_index + 1).data('multiple_index', multiple_index + 1);
 
-					jQuery.each($elements, function() {
-						var $el = jQuery(this);
-						jQuery.each($el.get(0).attributes, function() {
-							if (this.value == elId) {
-								$el.attr(this.name, this.value + '-' + multiple_index);
-							}
-							if (this.value == wrapperId) {
-								$el.attr(this.name, this.value + '-' + multiple_index);
-							}
-						});
+				jQuery.each($elements, function() {
+					var $el = jQuery(this);
+					jQuery.each($el.get(0).attributes, function() {
+						if (this.value == elId) {
+							$el.attr(this.name, this.value + '-' + multiple_index);
+						}
+						if (this.value == wrapperId) {
+							$el.attr(this.name, this.value + '-' + multiple_index);
+						}
 					});
+				});
 
-					template.attr('data-multiple_index', multiple_index).data('multiple_index', multiple_index)
-						.removeClass('hidden');
+				template.attr('data-multiple_index', multiple_index).data('multiple_index', multiple_index)
+					.removeClass('hidden');
 
-					del_button = jQuery('.vpm_multiple-delete').first().clone()
+				del_button = jQuery('.vpm_multiple-delete').first().clone()
+					.attr('data-wrapper', wrapperId).data('wrapper', wrapperId)
+					.attr('data-multiple_index', multiple_index).data('multiple_index', multiple_index);
+
+				if ( 1 == <?php echo (int)$field->sortable; ?> ) {
+					sort_button = jQuery('.vpm_multiple-sort').first().clone()
 						.attr('data-wrapper', wrapperId).data('wrapper', wrapperId)
 						.attr('data-multiple_index', multiple_index).data('multiple_index', multiple_index);
 
-					$addButton.before(del_button).before(template);
-				};
-			}
+					template.prepend(sort_button);
+				}
+				template.prepend(del_button);
+				$addButton.before(template);
+			};
 		</script>
 		<?php
 	}
@@ -1306,6 +1372,7 @@ class Voce_Meta_Field_Text extends Voce_Meta_Field {
 	public static function display_text( $field, $value, $post_id ) {
 		?>
 		<p id="<?php echo esc_attr( $field->get_wrapper_id( $field->index ) ); ?>" class="vpm_field vpm_field_text <?php echo esc_attr( $field->get_wrapper_id() ); ?>" data-multiple_index="<?php echo esc_attr( $field->index ); ?>">
+			<?php echo self::render_controls( $field, $post_id ); ?>
 			<?php echo self::get_label( $field ); ?>
 			<input class="widefat" type="text" id="<?php echo esc_attr( $field->get_input_id( $field->index ) ); ?>" name="<?php echo esc_attr( $field->get_name() ); ?>" value="<?php echo esc_attr( $value ); ?>"  />
 			<?php echo ! empty( $field->description ) ? ('<br><span class="description">' . wp_kses( $field->description, Voce_Meta_API::GetInstance()->description_allowed_html ) . '</span>') : ''; ?>
@@ -1344,6 +1411,7 @@ class Voce_Meta_Field_Textarea extends Voce_Meta_Field {
 	public static function display_textarea( $field, $current_value, $post_id ) {
 		?>
 		<p id="<?php echo esc_attr( $field->get_wrapper_id( $field->index ) ); ?>" class="vpm_field vpm_field_textarea <?php echo esc_attr( $field->get_wrapper_id() ); ?>" data-multiple_index="<?php echo esc_attr( $field->index ); ?>">
+			<?php echo self::render_controls( $field, $post_id ); ?>
 			<?php echo self::get_label( $field ); ?>
 			<textarea class="widefat" id="<?php echo esc_attr( $field->get_input_id( $field->index ) ); ?>" name="<?php echo esc_attr( $field->get_name() ); ?>"><?php echo esc_attr( $current_value ); ?></textarea>
 			<?php echo !empty( $field->description ) ? ('<br><span class="description">' . wp_kses( $field->description, Voce_Meta_API::GetInstance()->description_allowed_html ) . '</span>') : ''; ?>
@@ -1365,6 +1433,7 @@ class Voce_Meta_Field_Dropdown extends Voce_Meta_Field {
 	public static function display_dropdown( $field, $current_value, $post_id ) {
 		?>
 		<p id="<?php echo esc_attr( $field->get_wrapper_id( $field->index ) ); ?>" class="vpm_field vpm_field_dropdown <?php echo esc_attr( $field->get_wrapper_id() ); ?>" data-multiple_index="<?php echo esc_attr( $field->index ); ?>">
+			<?php echo self::render_controls( $field, $post_id ); ?>
 			<?php echo self::get_label( $field ); ?>
 			<select id="<?php echo esc_attr( $field->get_input_id( $field->index ) ); ?>" name="<?php echo esc_attr( $field->get_name() ); ?>">
 				<?php foreach ($field->args['options'] as $key => $value): ?>
@@ -1533,12 +1602,20 @@ class Voce_Meta_Field_Checkbox extends Voce_Meta_Field {
 	 * @param type $post_id
 	 */
 	public function display_field( $post_id ) {
+		printf( '<div id="%s-wrapper" class="vpm_wrapper %s %s">',
+			$this->get_wrapper_id(),
+			( $this->sortable ? 'sortable' : '' ),
+			( $this->multiple ? 'multiple' : '' )
+		);
+
 		$values = $this->get_values( $post_id );
 		foreach ( $this->display_callbacks as $callback ) {
 			if ( is_callable( $callback ) ) {
 				call_user_func( $callback, $this, $values, $post_id );
 			}
 		}
+
+		echo( '</div>' );
 	}
 
 	/**
@@ -1575,53 +1652,53 @@ class Voce_Meta_Field_Checkbox extends Voce_Meta_Field {
 	public static function render_clone_checkbox_js( $field, $post_id ) {
 		?>
 		<script type="application/javascript">
-			if (typeof window.vpm_clone_checkbox === 'undefined') {
-				window.vpm_clone_checkbox = function(addButton) {
-					var $addButton = jQuery(addButton),
-						wrapperId = $addButton.data('wrapper'),
-						elId = $addButton.data('id'),
-						template = jQuery('#' + wrapperId).clone(),
-						$elements = template.add(template.find('*')),
-						multiple_index = +$addButton.data('multiple_index'),
-						del_button;
+			window.vpm_clone_field = window.vpm_clone_field || [];
+			window.vpm_clone_field['<?php echo esc_js( $field->get_input_id() ); ?>'] = function(addButton) {
+				var $addButton = jQuery(addButton),
+					wrapperId = $addButton.data('wrapper'),
+					elId = $addButton.data('id'),
+					template = jQuery('#' + wrapperId).clone(),
+					$elements = template.add(template.find('*')),
+					multiple_index = +$addButton.data('multiple_index'),
+					del_button;
 
-					$addButton.attr('data-multiple_index', multiple_index + 1).data('multiple_index', multiple_index + 1);
+				$addButton.attr('data-multiple_index', multiple_index + 1).data('multiple_index', multiple_index + 1);
 
-					jQuery.each($elements, function() {
-						var $el = jQuery(this),
-							index_position,
-							new_position;
+				jQuery.each($elements, function() {
+					var $el = jQuery(this),
+						index_position,
+						new_position;
 
-						if ($el.attr('type') == 'checkbox') {
-							jQuery.each(['name','id'], function(k, field) {
-								index_position = $el.attr(field).indexOf('VPM_CLONE_INDEX');
-								if ( index_position > 0 ) {
-									new_val = [$el.attr(field).slice(0, index_position), multiple_index, $el.attr(field).slice(index_position + 15)].join('');
-									$el.attr(field, new_val);
-								}
-							});
-						}
-						jQuery.each($el.get(0).attributes, function() {
-							if (this.value == elId) {
-								$el.attr(this.name, this.value + '-' + multiple_index);
-							}
-							if (this.value == wrapperId) {
-								$el.attr(this.name, this.value + '-' + multiple_index);
+					if ($el.attr('type') == 'checkbox') {
+						jQuery.each(['name','id'], function(k, field) {
+							index_position = $el.attr(field).indexOf('VPM_CLONE_INDEX');
+							if ( index_position > 0 ) {
+								new_val = [$el.attr(field).slice(0, index_position), multiple_index, $el.attr(field).slice(index_position + 15)].join('');
+								$el.attr(field, new_val);
 							}
 						});
-
+					}
+					jQuery.each($el.get(0).attributes, function() {
+						if (this.value == elId) {
+							$el.attr(this.name, this.value + '-' + multiple_index);
+						}
+						if (this.value == wrapperId) {
+							$el.attr(this.name, this.value + '-' + multiple_index);
+						}
 					});
 
-					template.attr('data-multiple_index', multiple_index).data('multiple_index', multiple_index)
-						.removeClass('hidden');
+				});
 
-					del_button = jQuery('.vpm_multiple-delete').first().clone()
-						.attr('data-wrapper', wrapperId).data('wrapper', wrapperId)
-						.attr('data-multiple_index', multiple_index).data('multiple_index', multiple_index);
+				template.attr('data-multiple_index', multiple_index).data('multiple_index', multiple_index)
+					.removeClass('hidden');
 
-					$addButton.before(del_button).before(template);
-				};
-			}
+				del_button = jQuery('.vpm_multiple-delete').first().clone()
+					.attr('data-wrapper', wrapperId).data('wrapper', wrapperId)
+					.attr('data-multiple_index', multiple_index).data('multiple_index', multiple_index);
+
+				template.prepend(del_button);
+				$addButton.before(template);
+			};
 		</script>
 		<?php
 	}
@@ -1711,53 +1788,53 @@ class Voce_Meta_Field_Radio extends Voce_Meta_Field {
 	public static function render_clone_radio_js( $field, $post_id ) {
 		?>
 		<script type="application/javascript">
-			if (typeof window.vpm_clone_radio === 'undefined') {
-				window.vpm_clone_radio = function(addButton) {
-					var $addButton = jQuery(addButton),
-						wrapperId = $addButton.data('wrapper'),
-						elId = $addButton.data('id'),
-						template = jQuery('#' + wrapperId).clone(),
-						$elements = template.add(template.find('*')),
-						multiple_index = +$addButton.data('multiple_index'),
-						del_button;
+			window.vpm_clone_field = window.vpm_clone_field || [];
+			window.vpm_clone_field['<?php echo esc_js( $field->get_input_id() ); ?>'] = function(addButton) {
+				var $addButton = jQuery(addButton),
+					wrapperId = $addButton.data('wrapper'),
+					elId = $addButton.data('id'),
+					template = jQuery('#' + wrapperId).clone(),
+					$elements = template.add(template.find('*')),
+					multiple_index = +$addButton.data('multiple_index'),
+					del_button;
 
-					$addButton.attr('data-multiple_index', multiple_index + 1).data('multiple_index', multiple_index + 1);
+				$addButton.attr('data-multiple_index', multiple_index + 1).data('multiple_index', multiple_index + 1);
 
-					jQuery.each($elements, function() {
-						var $el = jQuery(this),
-							index_position,
-							new_position;
+				jQuery.each($elements, function() {
+					var $el = jQuery(this),
+						index_position,
+						new_position;
 
-						if ($el.attr('type') == 'radio') {
-							jQuery.each(['name','id'], function(k, field) {
-								index_position = $el.attr(field).indexOf('VPM_CLONE_INDEX');
-								if ( index_position > 0 ) {
-									new_val = [$el.attr(field).slice(0, index_position), multiple_index, $el.attr(field).slice(index_position + 15)].join('');
-									$el.attr(field, new_val);
-								}
-							});
-						}
-						jQuery.each($el.get(0).attributes, function() {
-							if (this.value == elId) {
-								$el.attr(this.name, this.value + '-' + multiple_index);
-							}
-							if (this.value == wrapperId) {
-								$el.attr(this.name, this.value + '-' + multiple_index);
+					if ($el.attr('type') == 'radio') {
+						jQuery.each(['name','id'], function(k, field) {
+							index_position = $el.attr(field).indexOf('VPM_CLONE_INDEX');
+							if ( index_position > 0 ) {
+								new_val = [$el.attr(field).slice(0, index_position), multiple_index, $el.attr(field).slice(index_position + 15)].join('');
+								$el.attr(field, new_val);
 							}
 						});
-
+					}
+					jQuery.each($el.get(0).attributes, function() {
+						if (this.value == elId) {
+							$el.attr(this.name, this.value + '-' + multiple_index);
+						}
+						if (this.value == wrapperId) {
+							$el.attr(this.name, this.value + '-' + multiple_index);
+						}
 					});
 
-					template.attr('data-multiple_index', multiple_index).data('multiple_index', multiple_index)
-						.removeClass('hidden');
+				});
 
-					del_button = jQuery('.vpm_multiple-delete').first().clone()
-						.attr('data-wrapper', wrapperId).data('wrapper', wrapperId)
-						.attr('data-multiple_index', multiple_index).data('multiple_index', multiple_index);
+				template.attr('data-multiple_index', multiple_index).data('multiple_index', multiple_index)
+					.removeClass('hidden');
 
-					$addButton.before(del_button).before(template);
-				};
-			}
+				del_button = jQuery('.vpm_multiple-delete').first().clone()
+					.attr('data-wrapper', wrapperId).data('wrapper', wrapperId)
+					.attr('data-multiple_index', multiple_index).data('multiple_index', multiple_index);
+
+				template.prepend(del_button);
+				$addButton.before(template);
+			};
 		</script>
 		<?php
 	}
@@ -1848,62 +1925,70 @@ class Voce_Meta_Field_WP_Editor extends Voce_Meta_Field {
 	public static function render_clone_wp_editor_js( $field, $post_id ) {
 		?>
 		<script type="application/javascript">
-			if (typeof window.vpm_clone_wp_editor === 'undefined') {
-				window.vpm_clone_wp_editor = function(addButton) {
-					var $addButton = jQuery(addButton),
-						wrapperId = $addButton.data('wrapper'),
-						elId = $addButton.data('id'),
-						template = jQuery('#' + wrapperId).clone(),
-						$elements = template.add(template.find('*')),
-						multiple_index = +$addButton.data('multiple_index'),
-						del_button;
+			window.vpm_clone_field = window.vpm_clone_field || [];
+			window.vpm_clone_field['<?php echo esc_js( $field->get_input_id() ); ?>'] = function(addButton) {
+				var $addButton = jQuery(addButton),
+					wrapperId = $addButton.data('wrapper'),
+					elId = $addButton.data('id'),
+					template = jQuery('#' + wrapperId).clone(),
+					$elements = template.add(template.find('*')),
+					multiple_index = +$addButton.data('multiple_index'),
+					del_button,
+					sort_button;
 
-					$addButton.attr('data-multiple_index', multiple_index + 1).data('multiple_index', multiple_index + 1);
+				$addButton.attr('data-multiple_index', multiple_index + 1).data('multiple_index', multiple_index + 1);
 
-					jQuery.each($elements, function() {
-						var $el = jQuery(this);
+				jQuery.each($elements, function() {
+					var $el = jQuery(this);
 
-						jQuery.each($el.get(0).attributes, function() {
-							if (this.value == elId) {
-								$el.attr(this.name, this.value + '-' + multiple_index);
-							}
-							if (this.value == wrapperId) {
-								$el.attr(this.name, this.value + '-' + multiple_index);
-							}
-						});
+					jQuery.each($el.get(0).attributes, function() {
+						if (this.value == elId) {
+							$el.attr(this.name, this.value + '-' + multiple_index);
+						}
+						if (this.value == wrapperId) {
+							$el.attr(this.name, this.value + '-' + multiple_index);
+						}
 					});
+				});
 
-					template.attr('data-multiple_index', multiple_index).data('multiple_index', multiple_index)
-						.removeClass('hidden');
+				template.attr('data-multiple_index', multiple_index).data('multiple_index', multiple_index)
+					.removeClass('hidden');
 
-					del_button = jQuery('.vpm_multiple-delete').first().clone()
+				del_button = jQuery('.vpm_multiple-delete').first().clone()
+					.attr('data-wrapper', wrapperId).data('wrapper', wrapperId)
+					.attr('data-multiple_index', multiple_index).data('multiple_index', multiple_index);
+
+				if ( 1 == <?php echo (int)$field->sortable; ?> ) {
+					sort_button = jQuery('.vpm_multiple-sort').first().clone()
 						.attr('data-wrapper', wrapperId).data('wrapper', wrapperId)
 						.attr('data-multiple_index', multiple_index).data('multiple_index', multiple_index);
 
-					$addButton.before(del_button).before(template);
+					template.prepend(sort_button);
+				}
+				template.prepend(del_button);
+				$addButton.before(template);
 
-					jQuery.ajax({
-						dataType: 'html',
-						async: false,
-						type: 'POST',
-						url: ajaxurl,
-						data: {
-							action: 'vpm_add_wp_editor',
-							field_id: elId + '_' + multiple_index,
-							field_args: vpm_clone_wp_editor_args[elId]
-						},
-						success: function (resp) {
-							if (resp) {
-								jQuery('#'+wrapperId+'-'+multiple_index+' .wp-editor-wrapper').html(resp);
-							}
-
-							// init tinymce
-							quicktags({id : elId + '_' + multiple_index});
-							tinymce.execCommand( 'mceAddEditor', false, elId + '_' + multiple_index );
+				jQuery.ajax({
+					dataType: 'html',
+					async: false,
+					type: 'POST',
+					url: ajaxurl,
+					data: {
+						action: 'vpm_add_wp_editor',
+						field_id: elId + '_' + multiple_index,
+						field_args: vpm_clone_wp_editor_args[elId]
+					},
+					success: function (resp) {
+						if (resp) {
+							jQuery('#'+wrapperId+'-'+multiple_index+' .wp-editor-wrapper').html(resp);
 						}
-					});
-				};
-			}
+
+						// init tinymce
+						quicktags({id : elId + '_' + multiple_index});
+						tinymce.execCommand( 'mceAddEditor', false, elId + '_' + multiple_index );
+					}
+				});
+			};
 		</script>
 		<?php
 	}
@@ -1919,6 +2004,7 @@ class Voce_Meta_Field_WP_Editor extends Voce_Meta_Field {
 		$field->args['wp_editor_args']['textarea_name'] = $field->get_name();
 		?>
 		<div id="<?php echo esc_attr( $field->get_wrapper_id( $field->index ) ); ?>" class="vpm_field vpm_field_wp_editor <?php echo esc_attr( $field->get_wrapper_id() ); ?>" data-multiple_index="<?php echo esc_attr( $field->index ); ?>">
+			<?php echo self::render_controls( $field, $post_id ); ?>
 			<?php echo self::get_label($field); ?>
 			<div class="wp-editor-wrapper">
 				<?php wp_editor( $current_value, $field->get_input_id( $field->index ), $field->args['wp_editor_args'] ); ?>
@@ -1940,6 +2026,7 @@ class Voce_Meta_Field_WP_Editor extends Voce_Meta_Field {
 		?>
 		<input type="hidden" name="<?php echo esc_attr( $field->get_name() ); ?>" />
 		<div id="<?php echo esc_attr( $field->get_wrapper_id() ); ?>" class="vpm_field vpm_field_wp_editor <?php echo esc_attr( $field->get_wrapper_id() ); ?>">
+			<?php echo self::render_controls( $field, $post_id ); ?>
 			<?php echo self::get_label($field); ?>
 			<div class="wp-editor-wrapper"></div>
 			<?php echo !empty( $field->description ) ? ('<br><span class="description">' . wp_kses( $field->description, Voce_Meta_API::GetInstance()->description_allowed_html ) . '</span>') : ''; ?>

@@ -1,9 +1,14 @@
 [data-multiple_index]:not([data-multiple_index=""]) {
-    margin-left: 30px;
+    padding-left: 30px;
 }
 
-fieldset[data-multiple="0"][data-multiple_index="1"] {
-    margin-left: auto;
+.vpm_fieldset[data-multiple_index]:not([data-multiple_index=""]),
+.vpm_fieldset[data-multiple="0"][data-multiple_index="1"] {
+    padding-left: 10px;
+}
+
+.vpm_fieldset[data-multiple="1"] {
+    margin-left: 30px;
 }
 
 .vpm_multiple-add {
@@ -12,27 +17,60 @@ fieldset[data-multiple="0"][data-multiple_index="1"] {
 }
 
 .vpm_multiple-delete {
-    position: relative;
-    top: 35px;
+    position: absolute;
+    left: 0;
+    top: 5px;
+}
+
+.vpm_fieldset .vpm_multiple-delete {
+    left: -30px;
+}
+
+.vpm_multiple-sort {
+    position: absolute;
+    left: 0;
+    top: 27px;
 }
 
 .vpm_multiple-add[data-wrapper],
-.vpm_multiple-delete[data-wrapper] {
-    margin-left: 0;
+.vpm_multiple-delete[data-wrapper],
+.vpm_multiple-sort[data-wrapper] {
+    padding-left: 0;
 }
 
 .vpm_multiple-add:hover,
-.vpm_multiple-delete:hover {
+.vpm_multiple-delete:hover,
+.vpm_multiple-sort:hover{
     cursor: pointer;
 }
 
 .vpm_multiple-add.disabled,
-.vpm_multiple-delete.disabled {
+.vpm_multiple-delete.disabled,
+.vpm_multiple-sort.disabled{
     color: #ddd;
     cursor: default;
 }
 
+.vpm_field {
+    position: relative;
+}
 .vpm_fieldset {
-    padding: 0 10px;
+    position: relative;
+    padding: 0 10px 10px;
     border: 1px solid lightgray;
+}
+
+.vpm_fieldset[data-multiple="1"] {
+    margin-top: 5px;
+    margin-bottom: 5px;
+}
+
+.vpm_wrapper.multiple {
+    margin-bottom: 15px;
+}
+
+.drop-placeholder {
+    border: 1px dotted #ddd;
+    background-color: #eee;
+    height: 2em;
 }
