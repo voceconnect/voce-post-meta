@@ -8,7 +8,7 @@
 				deleteButtonsSelector = '.vpm_multiple-delete[data-wrapper="' + wrapperId + '"]',
 				addButtonsSelector = '.vpm_multiple-add[data-wrapper="' + wrapperId + '"]',
 				update_add_button,
-				update_delete_buttons;
+				update_control_buttons;
 
 
 			update_add_button = function(){
@@ -20,17 +20,23 @@
 				}
 			};
 
-			update_delete_buttons = function(){
-				var $deleteButtons = $(deleteButtonsSelector);
+			update_control_buttons = function(){
+				var $deleteButtons = $(deleteButtonsSelector),
+					$sortable = $deleteButtons.parents('.vpm_wrapper.sortable'),
+					$sortButtons = $sortable.find('.vpm_multiple-sort');
 
 				if ( $deleteButtons.length == 1 ) {
 					$deleteButtons.addClass('disabled');
+					$sortButtons.addClass('disabled');
 				}
 				else {
 					$deleteButtons.removeClass('disabled');
+					$sortButtons.removeClass('disabled');
 				}
+
+				$sortable.sortable('refresh');
 			};
-			update_delete_buttons();
+			update_control_buttons();
 
 
 			$('#'+wrapperId).addClass('hidden');
@@ -42,7 +48,7 @@
 				clone_field[$addButton.data('id')](this);
 
 				update_add_button();
-				update_delete_buttons();
+				update_control_buttons();
 			});
 
 			$(document).on('click', deleteButtonsSelector+':not(.disabled)', function() {
@@ -52,11 +58,11 @@
 				$('.' + wrapperId + '[data-multiple_index="' + index + '"]').remove();
 
 				update_add_button();
-				update_delete_buttons();
+				update_control_buttons();
 			});
 
 			$('.vpm_wrapper.sortable').sortable({
-				handle: '.vpm_multiple-sort',
+				handle: '.vpm_multiple-sort:not(.disabled)',
 				items: '.vpm_field',
 				placeholder: 'drop-placeholder',
 				start: function(event, ui) {
