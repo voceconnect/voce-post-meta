@@ -1566,7 +1566,7 @@ class Voce_Meta_Field_Checkbox extends Voce_Meta_Field {
 	 * @param type $post_id
 	 */
 	public function update_field( $post_id ) {
-		$group_id = ( $this->fieldset ? "{$this->group->id}__{$this->fieldset->id}" : $this->group->id );
+		$group_id = $this->get_name_group();
 		$old_values = $this->get_values( $post_id );
 		$new_values = array();
 
@@ -1588,12 +1588,13 @@ class Voce_Meta_Field_Checkbox extends Voce_Meta_Field {
 		}
 
 		$field_id = $this->get_meta_key();
-		$new_ids = array();
+		$meta_ids = array();
 		foreach ( $new_values as $value ) {
-			$new_ids[] = add_post_meta( $post_id, $field_id, $value );
+			if ( $value || $value != $this->default_value ) {
+				$meta_ids[] = add_post_meta( $post_id, $field_id, $value );
+			}
 		}
-		return $new_ids;
-
+		return $meta_ids;
 	}
 
 	/**

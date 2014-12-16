@@ -43,9 +43,22 @@
 
 
 			$(document).on('click', addButtonsSelector+':not(.disabled)', function() {
-				var clone_field = window[$addButton.data('clone_js')];
+				var clone_field = window[$addButton.data('clone_js')],
+					textarea;
 
 				clone_field[$addButton.data('id')](this);
+
+				// fix for wp_editors
+				textarea = $('.'+$addButton.data('wrapper')).find('textarea.wp-editor-area');
+				textarea.each(function(index, element) {
+					var editor = tinyMCE.EditorManager.get(element.id);
+
+					if (editor) {
+						editor.save();
+						tinyMCE.execCommand('mceRemoveEditor', false, element.id);
+					}
+					tinyMCE.execCommand('mceAddEditor', true, element.id);
+				});
 
 				update_add_button();
 				update_control_buttons();
