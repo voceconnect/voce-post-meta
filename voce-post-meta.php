@@ -3,7 +3,7 @@ if ( !class_exists('Voce_Meta_API') ) {
 /*
   Plugin Name: Voce Post Meta
   Description: Allow easily adding meta fields to post types
-  Version: 1.7.0
+  Version: 1.8.0
   Author: prettyboymp, kevinlangleyjr, jeffstieler, markparolisi, banderon
   License: GPLv2 or later
  */
@@ -423,6 +423,8 @@ class Voce_Meta_Field implements iVoce_Meta_Field {
 		} else {
 			update_post_meta( $post_id, "{$this->group->id}_{$this->id}", $new_value );
 		}
+
+		do_action( 'voce_meta_update_field', $this, $post_id );
 	}
 
 	/**

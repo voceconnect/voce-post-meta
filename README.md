@@ -4,7 +4,7 @@ Contributors: prettyboymp, kevinlangleyjr, jeffstieler, markparolisi, banderon
 Tags: post, meta  
 Requires at least: 3.5  
 Tested up to: 3.9  
-Stable tag: 1.7.0  
+Stable tag: 1.8.0  
 License: GPLv2 or later  
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -86,6 +86,9 @@ array(
 ```
 
 ## Version History
+**1.8.0**
+Added an action when updating a field.
+
 **1.7.0**
 Added ability to have multiple checkboxes for the checkbox field. Allow specifying whether to use a div or span to wrap individual checkboxes and radios. Add an id to the top element of each field to allow for easier styling.
 
