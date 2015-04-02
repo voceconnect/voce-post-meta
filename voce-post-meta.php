@@ -411,9 +411,9 @@ class Voce_Meta_Field implements iVoce_Meta_Field {
 		$meta_key = "{$this->group->id}_{$this->id}";
 		if ( isset( $_POST[ $this->group->id ][ $this->id ] ) ) {
 			$new_value = $_POST[ $this->group->id ][ $this->id ];
-		} elseif ( isset( $_POST[ $this->group->id . '_' . $this->id ] ) ) {
+		} elseif ( isset( $_POST[ $meta_key ] ) ) {
 			// see voce_wp_editor_field_display function
-			$new_value = $_POST[ $this->group->id . '_' . $this->id ];
+			$new_value = $_POST[ $meta_key ];
 		} 
 		foreach ($this->sanitize_callbacks as $callback) {
 			if ( is_callable( $callback ) )
