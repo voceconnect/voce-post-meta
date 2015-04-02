@@ -408,6 +408,7 @@ class Voce_Meta_Field implements iVoce_Meta_Field {
 	public function update_field( $post_id ) {
 		$old_value = $this->get_value( $post_id );
 		$new_value = '';
+		$meta_key = "{$this->group->id}_{$this->id}";
 		if ( isset( $_POST[ $this->group->id ][ $this->id ] ) ) {
 			$new_value = $_POST[ $this->group->id ][ $this->id ];
 		} elseif ( isset( $_POST[ $this->group->id . '_' . $this->id ] ) ) {
@@ -418,13 +419,16 @@ class Voce_Meta_Field implements iVoce_Meta_Field {
 			if ( is_callable( $callback ) )
 				$new_value = call_user_func( $callback, $this, $old_value, $new_value, $post_id );
 		}
-		if ( is_null($new_value) || false === $new_value || "" === $new_value ) {
-			delete_post_meta( $post_id, "{$this->group->id}_{$this->id}" );
-		} else {
-			update_post_meta( $post_id, "{$this->group->id}_{$this->id}", $new_value );
-		}
 
-		do_action( 'voce_meta_update_field', $this, $post_id );
+		if ( is_null($new_value) || false === $new_value || "" === $new_value ) {
+			delete_post_meta( $post_id, $meta_key );
+
+			do_action( 'voce_meta_deleted_field', $post_id, $meta_key, $new_value, $old_value, $this );
+		} else {
+			update_post_meta( $post_id, $meta_key, $new_value );
+
+			do_action( 'voce_meta_updated_field', $post_id, $meta_key, $new_value, $old_value, $this );
+		}
 	}
 
 	/**
