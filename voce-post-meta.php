@@ -565,7 +565,7 @@ function voce_checkbox_field_display( $field, $current_value, $post_id ) {
 		<?php else: ?>
 			<?php $item_container = ! empty( $field->args['item_container'] ) && in_array( $field->args['item_container'], array( 'div', 'span' ) ) ? $field->args['item_container'] : 'div'; ?>
 			<?php foreach ($field->args['options'] as $key => $value): ?>
-			<<?php echo esc_html( $item_container ); ?> class="voce-meta-checkbox"><input type="checkbox" id="<?php echo esc_attr( $field->get_input_id() . '_' . $key ); ?>" name="<?php echo esc_attr( $field->get_name() . '[' . $key . ']') ?>" <?php checked( array_key_exists( $key, (array)$current_value ), true ); ?> /><?php echo wp_kses( $value, Voce_Meta_API::GetInstance()->label_allowed_html ); ?></<?php echo $item_container; ?>>
+			<<?php echo tag_escape( $item_container ); ?> class="voce-meta-checkbox"><input type="checkbox" id="<?php echo esc_attr( $field->get_input_id() . '_' . $key ); ?>" name="<?php echo esc_attr( $field->get_name() . '[' . $key . ']') ?>" <?php checked( array_key_exists( $key, (array)$current_value ), true ); ?> /><?php echo wp_kses( $value, Voce_Meta_API::GetInstance()->label_allowed_html ); ?></<?php echo tag_escape( $item_container ); ?>>
 			<?php endforeach; ?>
 		<?php endif; ?>
 		<?php echo !empty( $field->description ) ? ('<br><span class="description">' . wp_kses( $field->description, Voce_Meta_API::GetInstance()->description_allowed_html ) . '</span>') : ''; ?>
@@ -585,7 +585,7 @@ function voce_radio_field_display( $field, $current_value, $post_id ) {
 	<p id="<?php echo esc_attr( 'vpm_field-' . $field->get_input_id() ); ?>">
 		<?php voce_field_label_display( $field ); ?>
 		<?php foreach ($field->args['options'] as $key => $value): ?>
-			<<?php echo esc_html( $item_container ); ?> class="voce-meta-radio"><input type="radio" id="<?php echo esc_attr( $field->get_input_id() . '_' . $key ); ?>" name="<?php echo esc_attr( $field->get_name() ) ?>" value="<?php echo esc_attr( $key ); ?>" <?php checked( $current_value, $key ); ?> /><?php echo wp_kses( $value, Voce_Meta_API::GetInstance()->label_allowed_html ); ?></<?php echo $item_container; ?>>
+			<<?php echo tag_escape( $item_container ); ?> class="voce-meta-radio"><input type="radio" id="<?php echo esc_attr( $field->get_input_id() . '_' . $key ); ?>" name="<?php echo esc_attr( $field->get_name() ) ?>" value="<?php echo esc_attr( $key ); ?>" <?php checked( $current_value, $key ); ?> /><?php echo wp_kses( $value, Voce_Meta_API::GetInstance()->label_allowed_html ); ?></<?php echo tag_escape( $item_container ); ?>>
 		<?php endforeach; ?>
 		<?php echo !empty( $field->description ) ? ('<br><span class="description">' . wp_kses( $field->description, Voce_Meta_API::GetInstance()->description_allowed_html ) . '</span>') : ''; ?>
 	</p>
