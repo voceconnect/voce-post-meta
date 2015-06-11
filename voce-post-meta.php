@@ -3,7 +3,7 @@ if ( !class_exists('Voce_Meta_API') ) {
 /*
   Plugin Name: Voce Post Meta
   Description: Allow easily adding meta fields to post types
-  Version: 1.9.0
+  Version: 1.9.1
   Author: prettyboymp, kevinlangleyjr, jeffstieler, markparolisi, banderon, smccafferty
   License: GPLv2 or later
  */
