@@ -39,7 +39,8 @@ class Voce_Meta_API {
 		$mapping['text'] = array(
 			'class' => 'Voce_Meta_Field',
 			'args' => array(
-				'display_callbacks' => array( 'voce_text_field_display' )
+				'display_callbacks' => array( 'voce_text_field_display' ),
+				'sanitize_callbacks' => array( 'vpm_sanitize_text_field' )
 			)
 		);
 		$mapping['hidden'] = array(
@@ -306,8 +307,8 @@ class Voce_Meta_Group {
 	 */
 	private function verify_nonce() {
 
-		if ( isset( $_REQUEST["{$this->id}_nonce"] ) ) {
-			return wp_verify_nonce( $_REQUEST["{$this->id}_nonce"], "update_{$this->id}" );
+		if ( isset( $_POST["{$this->id}_nonce"] ) ) {
+			return wp_verify_nonce( $_POST["{$this->id}_nonce"], "update_{$this->id}" );
 		}
 
 		return false;
@@ -324,7 +325,8 @@ class Voce_Meta_Group {
 		if ( wp_is_post_autosave( $post ) ||
 				wp_is_post_revision( $post ) ||
 				!post_type_supports( $post->post_type, $this->id ) ||
-				!$this->verify_nonce() ) {
+				!$this->verify_nonce() ||
+				!current_user_can( 'edit_posts' ) ) {
 			return $post_id;
 		}
 
@@ -375,7 +377,7 @@ class Voce_Meta_Field implements iVoce_Meta_Field {
 			'capability' => $this->group->capability,
 			'default_value' => '',
 			'display_callbacks' => array( 'voce_text_field_display' ),
-			'sanitize_callbacks' => array(),
+			'sanitize_callbacks' => array( 'vpm_sanitize_text_field ' ),
 			'description' => ''
 		);
 		$args = wp_parse_args( $args, $defaults );
@@ -542,7 +544,7 @@ function voce_textarea_field_display( $field, $current_value, $post_id ) {
 	?>
 	<p id="<?php echo esc_attr( 'vpm_field-' . $field->get_input_id() ); ?>">
 		<?php voce_field_label_display( $field ); ?>
-		<textarea class="widefat" id="<?php echo esc_attr( $field->get_input_id() ); ?>" name="<?php echo esc_attr( $field->get_name() ); ?>"><?php echo esc_attr( $current_value ); ?></textarea>
+		<textarea class="widefat" id="<?php echo esc_attr( $field->get_input_id() ); ?>" name="<?php echo esc_attr( $field->get_name() ); ?>"><?php echo esc_textarea( $current_value ); ?></textarea>
 		<?php echo !empty( $field->description ) ? ('<br><span class="description">' . wp_kses( $field->description, Voce_Meta_API::GetInstance()->description_allowed_html ) . '</span>') : ''; ?>
 	</p>
 	<?php
@@ -563,7 +565,7 @@ function voce_checkbox_field_display( $field, $current_value, $post_id ) {
 		<?php else: ?>
 			<?php $item_container = ! empty( $field->args['item_container'] ) && in_array( $field->args['item_container'], array( 'div', 'span' ) ) ? $field->args['item_container'] : 'div'; ?>
 			<?php foreach ($field->args['options'] as $key => $value): ?>
-				<<?php echo $item_container; ?> class="voce-meta-checkbox"><input type="checkbox" id="<?php echo esc_attr( $field->get_input_id() . '_' . $key ); ?>" name="<?php echo esc_attr( $field->get_name() . '[' . $key . ']') ?>" <?php checked( array_key_exists( $key, (array)$current_value ), true ); ?> /><?php echo wp_kses( $value, Voce_Meta_API::GetInstance()->label_allowed_html ); ?></<?php echo $item_container; ?>>
+			<<?php echo esc_html( $item_container ); ?> class="voce-meta-checkbox"><input type="checkbox" id="<?php echo esc_attr( $field->get_input_id() . '_' . $key ); ?>" name="<?php echo esc_attr( $field->get_name() . '[' . $key . ']') ?>" <?php checked( array_key_exists( $key, (array)$current_value ), true ); ?> /><?php echo wp_kses( $value, Voce_Meta_API::GetInstance()->label_allowed_html ); ?></<?php echo $item_container; ?>>
 			<?php endforeach; ?>
 		<?php endif; ?>
 		<?php echo !empty( $field->description ) ? ('<br><span class="description">' . wp_kses( $field->description, Voce_Meta_API::GetInstance()->description_allowed_html ) . '</span>') : ''; ?>
@@ -583,7 +585,7 @@ function voce_radio_field_display( $field, $current_value, $post_id ) {
 	<p id="<?php echo esc_attr( 'vpm_field-' . $field->get_input_id() ); ?>">
 		<?php voce_field_label_display( $field ); ?>
 		<?php foreach ($field->args['options'] as $key => $value): ?>
-			<<?php echo $item_container; ?> class="voce-meta-radio"><input type="radio" id="<?php echo esc_attr( $field->get_input_id() . '_' . $key ); ?>" name="<?php echo esc_attr( $field->get_name() ) ?>" value="<?php echo esc_attr( $key ); ?>" <?php checked( $current_value, $key ); ?> /><?php echo wp_kses( $value, Voce_Meta_API::GetInstance()->label_allowed_html ); ?></<?php echo $item_container; ?>>
+			<<?php echo esc_html( $item_container ); ?> class="voce-meta-radio"><input type="radio" id="<?php echo esc_attr( $field->get_input_id() . '_' . $key ); ?>" name="<?php echo esc_attr( $field->get_name() ) ?>" value="<?php echo esc_attr( $key ); ?>" <?php checked( $current_value, $key ); ?> /><?php echo wp_kses( $value, Voce_Meta_API::GetInstance()->label_allowed_html ); ?></<?php echo $item_container; ?>>
 		<?php endforeach; ?>
 		<?php echo !empty( $field->description ) ? ('<br><span class="description">' . wp_kses( $field->description, Voce_Meta_API::GetInstance()->description_allowed_html ) . '</span>') : ''; ?>
 	</p>
@@ -686,6 +688,10 @@ function vpm_sanitize_dropdown( $field, $old, $new, $post_id ) {
 
 function voce_sanitize_wp_editor( $field, $old_value, $new_value, $post_id ) {
 	return wp_kses( $new_value, wp_kses_allowed_html( 'post' ) );
+}
+
+function vpm_sanitize_text_field( $field, $old, $new, $post_id ) {
+	return sanitize_text_field( $new );
 }
 
 }
