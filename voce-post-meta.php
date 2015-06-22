@@ -3,7 +3,7 @@ if ( !class_exists('Voce_Meta_API') ) {
 /*
   Plugin Name: Voce Post Meta
   Description: Allow easily adding meta fields to post types
-  Version: 1.9.1
+  Version: 1.9.2
   Author: prettyboymp, kevinlangleyjr, jeffstieler, markparolisi, banderon, smccafferty
   License: GPLv2 or later
  */
@@ -65,7 +65,8 @@ class Voce_Meta_API {
 		$mapping['textarea'] = array(
 			'class' => 'Voce_Meta_Field',
 			'args' => array(
-				'display_callbacks' => array( 'voce_textarea_field_display' )
+				'display_callbacks' => array( 'voce_textarea_field_display' ),
+				'rows' => 2
 			)
 		);
 		$mapping['checkbox'] = array(
@@ -544,7 +545,7 @@ function voce_textarea_field_display( $field, $current_value, $post_id ) {
 	?>
 	<p id="<?php echo esc_attr( 'vpm_field-' . $field->get_input_id() ); ?>">
 		<?php voce_field_label_display( $field ); ?>
-		<textarea class="widefat" id="<?php echo esc_attr( $field->get_input_id() ); ?>" name="<?php echo esc_attr( $field->get_name() ); ?>"><?php echo esc_textarea( $current_value ); ?></textarea>
+		<textarea class="widefat" id="<?php echo esc_attr( $field->get_input_id() ); ?>" name="<?php echo esc_attr( $field->get_name() ); ?>" rows="<?php echo esc_attr( $field->args['rows'] ); ?>"><?php echo esc_textarea( $current_value ); ?></textarea>
 		<?php echo !empty( $field->description ) ? ('<br><span class="description">' . wp_kses( $field->description, Voce_Meta_API::GetInstance()->description_allowed_html ) . '</span>') : ''; ?>
 	</p>
 	<?php
